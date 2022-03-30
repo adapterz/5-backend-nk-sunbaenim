@@ -32,7 +32,7 @@ let users = [
 let articles = [
   {
     article_id: 0,
-    //발행된 기사의 경우 1, 발행되지 않고 임시저장된 게시물의 경우 0으로 구분
+    //발행된 기사의 경우 1, 발행되지 않고 임시저장된 게시물의 경우 0으로 구분한다.
     is_published: 1,
     title: "All about express.js",
     content: "blahblah",
