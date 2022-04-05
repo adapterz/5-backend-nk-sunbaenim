@@ -1,50 +1,42 @@
 //Controllers for users
 
-let users = [
-  {
-    id: 0,
-    email: "nknkcho@gmail.com",
-    pwd: "PAssword1!@#",
-    pwd_check: "PAssword1!@#",
-    nickname: "hihi",
-  },
-  {
-    id: 1,
-    email: "srirachacho@gmail.com",
-    pwd: "PAssword2!@#",
-    pwd_check: "PAssword2!@#",
-    nickname: "byebye",
-  },
-  {
-    id: 2,
-    email: "mizicho@gmail.com",
-    pwd: "PAssword3!@#",
-    pwd_check: "PAssword3!@#",
-    nickname: "",
-  },
-];
+const User = require("../users/user.model");
 
-const signup = function (req, res) {
-  const email = req.body.email;
-  const pwd = req.body.pwd;
-  const pwd_check = req.body.pwd_check;
-  //id는 유저 식별 번호를 의미
-  const id = 0;
-  const user = { id, email, pwd, pwd_check };
-  //is_duplicated가 0이면 이미 가입된 유저가 없다는 의미, 1이면 이미 가입된 유저가 있다는 의미
-  const is_duplicated = users.filter((user) => user.email === email).length;
+const create_account = function (req, res) {
+  //Validate request : v라우트에서 미들웨어로 유효성 검사하는 방법으로 변경 피드백.
+  //solution : express-validator를 사용하여 아래 변경하기
+  if (!req.body.email) return res.status(400).send({message: "Please validate email."});
+  if (!req.body.pwd) return res.status(400).send({message: "Please validate pwd."});
+  if (req.body.pwd !== req.body.pwd_check) return res.status(400).send({message: "Password is not matched"});
 
-  //상태코드를 상수화
-  if (!email) return res.status(400).send("Please enter email");
-  if (!pwd) return res.status(400).send("Please enter pwd");
-  if (pwd !== pwd_check) return res.status(409).send("Password is not matched");
-  if (is_duplicated) return res.status(409).send("User already existed");
+  //Create user account
+  const user = new User({
+    email: req.body.email,
+    pwd: req.body.pwd,
+    pwd_check: req.body.pwd_check,
+    //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 ALTER 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
+    nickname: " ",
+    //signup(회원가입한 날짜)
+    signup: new Date().toISOString().slice(0, 10).replace("T", " "),
+    signout: null,
+    //field_id(유저 관심 카테고리) : 테스트를 위해 일시적으로 하드코딩 함.
+    field_id: 1,
+  });
 
-  users.push(user);
-  res.status(201).send("Success : email, pwd");
+
+  //Save account in the database
+  User.create_account(user, (err, data) => {
+    if (err)
+    //500 : 프론트에서 봤을 때 '서버에서 문제가 생겼구나' 정도만 정보를 전달하여도 괜찮을까요?
+    return res.status(500).send({
+        message: "Some error occurred while creating the account",
+      });
+    res.send(data);
+  });
 };
 
-const get_nickname = function (req, res) {
+
+const create_nickname = function (req, res) {
   const nickname = req.body.nickname;
   //user_id는 문자열로 받아오기 때문에 십진법 숫자로 바꿔줍니다.
   //user_id는 유저 식별 번호를 의미
@@ -63,7 +55,7 @@ const get_nickname = function (req, res) {
   res.status(201).send("Success : nickname");
 };
 
-const get_image = function (req, res) {
+const create_profile_image = function (req, res) {
   const image = req.params.image;
   const user_id = parseInt(req.params.user_id, 10);
   const user_info = users.filter((user) => user.id === user_id);
@@ -75,7 +67,7 @@ const get_image = function (req, res) {
   res.status(200).send("Success : Create profile image");
 };
 
-const get_field = function (req, res) {
+const create_field = function (req, res) {
   //필드가 어떤걸 의미하는 지 주석으로 넣으면 좋을 것 같다.
   const field = req.body.field_id;
   const user_id = parseInt(req.params.user_id, 10);
@@ -88,7 +80,7 @@ const get_field = function (req, res) {
 };
 
 //회원탈퇴
-const signout = function (req, res) {
+const delete_account = function (req, res) {
   const pwd = req.body.pwd;
   //유저가 탈퇴를 진행하기 위해 입력한 비밀번호가 가입된 유저 정보에 있는지 확인,
   //0이면 비밀번호 오류, 1이면 비밀번호 일치하여 탈퇴 프로세스 진행 가능
@@ -123,7 +115,7 @@ const logout = function (req, res) {
   if (user_info) return res.status(200).send("Success : logout");
 };
 
-const get_pwd = function (req, res) {
+const find_pwd = function (req, res) {
   const user_info = users.filter((user) => user.email === req.body.email);
 
   //유저가 메일 주소를 입력하지 않았을 경우
@@ -185,14 +177,14 @@ const edit_pwd = function (req, res) {
 };
 
 module.exports = {
-  signup,
-  get_nickname,
-  get_image,
-  get_field,
-  signout,
+  create_account,
+  create_nickname,
+  create_profile_image,
+  create_field,
+  delete_account,
   login,
   logout,
-  get_pwd,
+  find_pwd,
   edit_nickname,
   edit_image,
   edit_pwd,
