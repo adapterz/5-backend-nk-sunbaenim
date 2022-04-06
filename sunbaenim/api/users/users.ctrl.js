@@ -2,8 +2,9 @@
 
 const User = require("../users/user.model");
 
+// http post "users/signup" 요청 시 응답 코드 (회원가입)
 const create_account = function (req, res) {
-  //Validate request : v라우트에서 미들웨어로 유효성 검사하는 방법으로 변경 피드백.
+  //Validate request : 라우트에서 미들웨어로 유효성 검사하는 방법으로 변경 피드백.
   //solution : express-validator를 사용하여 아래 변경하기
   if (!req.body.email) return res.status(400).send({message: "Please validate email."});
   if (!req.body.pwd) return res.status(400).send({message: "Please validate pwd."});
@@ -14,7 +15,7 @@ const create_account = function (req, res) {
     email: req.body.email,
     pwd: req.body.pwd,
     pwd_check: req.body.pwd_check,
-    //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 ALTER 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
+    //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 UPDATE users SET nickname where id 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
     nickname: " ",
     //signup(회원가입한 날짜)
     signup: new Date().toISOString().slice(0, 10).replace("T", " "),
@@ -36,23 +37,22 @@ const create_account = function (req, res) {
 };
 
 
+// http post "users/:user_id/nickname" 요청 시 응답 코드 (닉네임 등록)
 const create_nickname = function (req, res) {
-  const nickname = req.body.nickname;
-  //user_id는 문자열로 받아오기 때문에 십진법 숫자로 바꿔줍니다.
-  //user_id는 유저 식별 번호를 의미
+  //user_id(유저 식별자)는 문자열로 받아오기 때문에 십진법 숫자로 바꿔줍니다.
   const user_id = parseInt(req.params.user_id, 10);
-  //FIXME: id를 0부터 시작하면, 배열 index값으로도 찾을 수 있지 않을까?
-  const user_info = users.filter((user) => user.id === user_id);
-  const is_duplicated = users.filter(
-    (user) => user.nickname === nickname
-  ).length;
+  console.log(user_id);
+  //Validate request
+  if (!req.body.nickname)
+    return res.status(400).send("Please input your nickname");
 
-  if (!nickname)
-    return res.status(400).send("Please enter correct information");
-  if (is_duplicated) return res.status(409).send("Nickname already existed");
-
-  user_info[0]["nickname"] = nickname;
-  res.status(201).send("Success : nickname");
+  //Save account in the database
+  User.create_nickname(user_id, req.body.nickname, (err, data) => {
+    if(err) return res.status(500).send({
+      message: "Some error occurred while creating the account"
+    });
+    res.send(data);
+  })
 };
 
 const create_profile_image = function (req, res) {
