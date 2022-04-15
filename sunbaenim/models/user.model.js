@@ -68,6 +68,24 @@ User.create_nickname = (user_id, nickname, result) => {
   );
 };
 
+//신규 유저의 관심 분야 정보 추가
+User.create_field = (user_id, field_id, result) => {
+  sql.query(
+    "UPDATE users SET field_id = ? WHERE id = ?",
+    [field_id, user_id],
+    (err, res) => {
+      if (err) {
+        console.log("error: ", err);
+        result(err, null);
+        return;
+      }
+      console.log("User field is updated");
+      result(null, res);
+    }
+  );
+};
+
+
 //유저의 프로필 이미지 추가
 User.create_profile = (user_id, new_file, result) => {
   //유저 id를 통해 기존에 프로필 이미지가 등록된 유저인지 확인
@@ -104,5 +122,6 @@ User.create_profile = (user_id, new_file, result) => {
     }
   );
 };
+
 
 module.exports = User;
