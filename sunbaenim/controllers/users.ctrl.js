@@ -23,7 +23,7 @@ const create_account = function (req, res) {
     signout: null,
     //FIXME: field_id 업데이트 코드 필요
     //field_id(유저 관심 카테고리) : 테스트를 위해 일시적으로 하드코딩. 추후 변경 필요.
-    field_id: 1,
+    field_id: 0,
   });
 
   //Save account in the database
@@ -51,6 +51,20 @@ const create_nickname = function (req, res) {
   })
 };
 
+// POST: "/:user_id/fields" 유저의 관심 분야 입력 요청 시 응답
+// field: 유저가 선택하는 자신의 IT 분야(ex. 프론트엔드, 백엔드, 데브옵스 등등), 필드는 숫자를 통해 판별하기로 한다.
+const create_field = function (req, res) {
+  const user_id = parseInt(req.params.user_id, 10);
+  console.log(user_id);
+
+  if (!req.body.field_id) return res.status(status_code.invalid_input);
+
+  User.create_field(user_id, req.body.field_id, (err, data) => {
+    if(err) return res.status(status_code.invalid_input);
+    res.status(status_code.upload_success).send(data);
+  })
+};
+
 // POST: "/:user_id/image" 유저의 프로필 이미지 등록 요청 시 응답 (이미지 등록)
 const create_profile_image = function (req, res) {
   const user_id = parseInt(req.params.user_id, 10);
@@ -67,18 +81,6 @@ const create_profile_image = function (req, res) {
   })
 };
 
-// POST: "/:user_id/fields" 유저의 관심 분야 입력 요청 시 응답
-const create_field = function (req, res) {
-  //필드가 어떤걸 의미하는 지 주석으로 넣으면 좋을 것 같다.
-  const field = req.body.field_id;
-  const user_id = parseInt(req.params.user_id, 10);
-  const user_info = users.filter((user) => user.id === user_id);
-
-  if (!field) return res.status(400).send("Please select your field");
-
-  user_info[0]["field"] = field;
-  res.status(201).send("Success : field");
-};
 
 
 //로그인
