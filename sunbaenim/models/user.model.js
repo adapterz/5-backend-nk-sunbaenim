@@ -68,29 +68,41 @@ User.create_nickname = (user_id, nickname, result) => {
   );
 };
 
+//유저의 프로필 이미지 추가
 User.create_profile = (user_id, new_file, result) => {
-  sql.query("SELECT user_id FROM files WHERE user_id = ?", user_id, (err, rows) => {
-    if(rows.length == 0) return sql.query("INSERT INTO files SET ?", new_file, (err, res) => {
-      if (err) {
-        console.log("error: ", err);
-        result(err, null);
-        return;
-      }
-      console.log("User profile is created");
-      result(null, res);
-    })
-
-    if(rows.length !== 0) return sql.query("UPDATE files SET ? WHERE user_id = ?", 
-    [new_file, user_id], (err, res) => {
-      if (err) {
-        console.log("error: ", err);
-        result(err, null);
-        return;
-      }
-      console.log("User nickname is updated");
-      result(null, res);
-    })
-  })
-}
+  //유저 id를 통해 기존에 프로필 이미지가 등록된 유저인지 확인
+  sql.query(
+    "SELECT user_id FROM files WHERE user_id = ?",
+    user_id,
+    (err, rows) => {
+      //기존에 프로필 이미지를 등록한 적이 없는 유저라면, 새로 생성
+      if (rows.length == 0)
+        return sql.query("INSERT INTO files SET ?", new_file, (err, res) => {
+          if (err) {
+            console.log("error: ", err);
+            result(err, null);
+            return;
+          }
+          console.log("User profile is created");
+          result(null, res);
+        });
+      //기존에 프로필 이미지를 등록했던 유저라면, 이미지 새로 갱신
+      if (rows.length !== 0)
+        return sql.query(
+          "UPDATE files SET ? WHERE user_id = ?",
+          [new_file, user_id],
+          (err, res) => {
+            if (err) {
+              console.log("error: ", err);
+              result(err, null);
+              return;
+            }
+            console.log("User nickname is updated");
+            result(null, res);
+          }
+        );
+    }
+  );
+};
 
 module.exports = User;
