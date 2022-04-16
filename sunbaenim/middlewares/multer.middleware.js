@@ -2,21 +2,21 @@ const path = require('path');
 const multer = require('multer');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, './public/images/avatars');
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     cb(null, new Date().valueOf() + path.extname(file.originalname));
   }
 })
 
 
-const fileFilter = (req, file, cb) => {
+const fileFilter = (_req, file, cb) => {
   //이미지 확장자 구분 검사
   if(file.mimetype == 'image/jpg' || file.mimetype == 'image/jpeg' || file.mimetype == 'image/png'){
     cb(null, true)
   } else {
-    cb("*.jpg, *.jpeg, *.png 파일만 업로드가 가능합니다.", false)     
+    cb("*.jpg, *.jpeg, *.png 파일만 업로드가 가능합니다.", false)
   }
 }
 
