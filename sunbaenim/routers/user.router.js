@@ -5,7 +5,17 @@ const router = express.Router();
 const ctrl = require("../controllers/users.ctrl");
 //Middlewares
 const account_validation = require("../middlewares/validate.account.middleware");
+const login_validation = require("../middlewares/login.middleware");
 const upload = require("../middlewares/multer.middleware");
+
+//이미 로그인 되어있는 유저인지 확인하는 미들웨어
+const logged_in = (req, res, next) => {
+  if(req.session.user_id){
+    console.log("User already logged in!")
+    return res.redirect("/");
+  }
+  next();
+}
 
 //회원가입
 router.post("/signup", account_validation, ctrl.create_account);
@@ -13,7 +23,6 @@ router.post("/signup", account_validation, ctrl.create_account);
 //내 닉네임 등록
 router.post("/:user_id/nickname", ctrl.create_nickname);
 
-//TODO: 프로필 이미지 API
 //내 프로필 이미지 등록
 router.post("/:user_id/image", upload.single('avatar'), ctrl.create_profile_image);
 
@@ -23,12 +32,17 @@ router.post("/:user_id/fields", ctrl.create_field);
 //회원탈퇴
 router.delete("/signout", ctrl.delete_account);
 
-//FIXME: 로그인, 로그아웃 API
 //로그인
-router.post("/login", ctrl.login);
+// router.get("/login", ctrl.login_page);
+router.post("/login", logged_in, login_validation, ctrl.login);
 
 //로그아웃
-router.post("/logout", ctrl.logout);
+router.get("/logout", (req, res, next) => {
+  req.session.destroy((err) => {
+    next(err);
+  });
+  res.send("Completed Log out");
+});
 
 //비밀번호 찾기
 router.post("/pwd_search", ctrl.find_pwd);
