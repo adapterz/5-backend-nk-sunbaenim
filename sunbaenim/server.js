@@ -1,13 +1,18 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const cors = require("cors");
+//Since version 1.5.0, the cookie-parser middleware no longer needs to be used for this module to work.
+const session = require('express-session');
 
 const app = express();
-const corsOptions = {
-  origin: "http://localhost:8081"
-};
 
-app.use(cors(corsOptions));
+app.use(session({
+  secret: 'sunbaenimhost',
+  resave: false,
+  saveUninitialized: true,
+  //test를 위해 쿠키 maxAge는 1시간으로 디폴트 설정
+  cookie: {maxAge : 3600 * 1000} //1 hour
+}))
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
