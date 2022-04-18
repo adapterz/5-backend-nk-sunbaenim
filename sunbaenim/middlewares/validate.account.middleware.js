@@ -7,22 +7,26 @@ const status_code = {
 
 module.exports = [
   body("email")
-  //email 유효성 검사
+  //회원가입 시 유저가 입력한 email 주소의 유효성 검사
     .notEmpty()
     .withMessage("Please fill out email")
     .isEmail()
     .withMessage("Input as an email format")
+    .trim()
+    .escape()
     .bail(),
 
-  //비밀번호 유효성 검사
+  //회원가입 시 유저가 입력한 비밀번호의 유효성 검사
   body("pwd")
     .notEmpty()
     .withMessage("Please fill out pwd")
     .isLength({ min: 5 })
+    .trim()
+    .escape()
     .withMessage("Input password more than 5 words"),
 
 
-  //비밀번호 일치 여부 확인
+  //회원가입 시 비밀번호 일치 여부 확인
   body("pwd_check")
   .custom((value, { req }) => {
     if (value !== req.body.pwd) {
