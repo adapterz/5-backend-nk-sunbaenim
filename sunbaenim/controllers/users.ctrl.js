@@ -1,68 +1,73 @@
 //Controllers for users
 const User = require("../models/user.model");
+const bcrypt = require('bcryptjs');
 
 //상태코드 상수화
 const status_code = {
-  server_error: 500,
+  success: 200,
+  upload_success: 201,
   invalid_input: 400,
   forbidden: 401,
-  upload_success: 201
-}
+  not_found_user: 404,
+  server_error: 500,
+};
 
 // http post "users/signup" 요청 시 응답 (회원가입)
-const create_account = function (req, res) {
+const create_account = async function (req, res) {
+
+  //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정.
+  const hash_pwd = await bcrypt.hash(req.body.pwd, 10);
+
   //Create user account
-  const user = new User({
+  const user = {
     email: req.body.email,
-    pwd: req.body.pwd,
-    pwd_check: req.body.pwd_check,
+    pwd: hash_pwd,
+    //validate.account 미들웨어로 유효성 검사를 완료한 뒤 데이터를 받기 때문에, pwd와 pwd_check는 같은 값 입력
+    pwd_check: hash_pwd,
     //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 UPDATE users SET nickname where id 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
     nickname: " ",
     //signup(회원가입한 날짜)
     signup: new Date().toISOString().slice(0, 10).replace("T", " "),
     signout: null,
-    //FIXME: field_id 업데이트 코드 필요
-    //field_id(유저 관심 카테고리) : 테스트를 위해 일시적으로 하드코딩. 추후 변경 필요.
+    //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록
     field_id: 0,
-  });
+  };
 
   //Save account in the database
   User.create_account(user, (err, data) => {
-    if (err)
-    return res.status(status_code.server_error);
+    if (err) return res.status(status_code.server_error);
     res.send(data);
   });
 };
-
 
 // http post "users/:user_id/nickname" 요청 시 응답 (닉네임 등록)
 const create_nickname = function (req, res) {
   //user_id(유저 식별자)는 문자열로 받아오기 때문에 십진법 숫자로 바꿈.
   const user_id = parseInt(req.params.user_id, 10);
-  console.log(user_id);
-  //Validate request
-  if (!req.body.nickname)
-    return res.status(status_code.invalid_input);
+  
+  //Validate nickname POST request
+  if (!req.body.nickname) return res.status(status_code.invalid_input);
 
-  //Save account in the database
+  //Save nickname info in users database
   User.create_nickname(user_id, req.body.nickname, (err, data) => {
-    if(err) return res.status(status_code.server_error);
+    if (err) return res.status(status_code.server_error);
     res.send(data);
-  })
+  });
 };
 
 // POST: "/:user_id/fields" 유저의 관심 분야 입력 요청 시 응답
 // field: 유저가 선택하는 자신의 IT 분야(ex. 프론트엔드, 백엔드, 데브옵스 등등), 필드는 숫자를 통해 판별하기로 한다.
 const create_field = function (req, res) {
   const user_id = parseInt(req.params.user_id, 10);
-  console.log(user_id);
 
+  //Validate field POST request
   if (!req.body.field_id) return res.status(status_code.invalid_input);
 
+  //Save field info in users database
   User.create_field(user_id, req.body.field_id, (err, data) => {
-    if(err) return res.status(status_code.invalid_input);
+    if (err) return res.status(status_code.invalid_input);
     res.status(status_code.upload_success).send(data);
-  })
+  });
 };
 
 // POST: "/:user_id/image" 유저의 프로필 이미지 등록 요청 시 응답 (이미지 등록)
@@ -71,42 +76,43 @@ const create_profile_image = function (req, res) {
   //새로운 파일 생성 시, 유저 식별 아이디, 파일명, 생성일자 삽입
   const new_file = {
     user_id: user_id,
-    file_name : req.file.filename,
-    create_at : new Date()
-  }
+    file_name: req.file.filename,
+    create_at: new Date(),
+  };
 
-  User.create_profile(user_id, new_file, (err, data) => {
-    if(err) return res.status(status_code.invalid_input);
+  //Save file info in files database
+  User.create_profile(user_id, new_file, (err) => {
+    if (err) return res.status(status_code.invalid_input);
     res.status(status_code.upload_success).send(req.file);
-  })
+  });
+};
+
+// POST: "/login" 유저 로그인 요청 시 응답
+const login = function (req, res){
+  User.login(req.body.email, (err, data) => {
+    //유저가 로그인하기 위해 입력한 email 정보가 db에 없는 경우 에러 메시지 응답
+    if(err) return res.status(status_code.not_found_user).send("아이디 또는 비밀번호를 확인하세요.");
+
+    //유저가 로그인하기 위해 입력한 email 정보가 db에 있는 경우, user 정보 data로 출력
+    if(data){
+      const compare_pwd = async function (pwd, target){
+        const match = await bcrypt.compare(pwd, target);
+        if(match) {
+          //비밀번호가 일치하는 경우 세션에 유저의 식별자 id 저장
+          req.session.user_id = data.id;
+          return res.status(status_code.success).send(`${data.nickname}` + "님 환영합니다.");
+        }
+        //비밀번호가 일치하지 않는 경우 에러 메시지 응답
+        if(!match) return res.status(status_code.not_found_user).send("아이디 또는 비밀번호를 확인하세요.");
+      }
+      //유저가 로그인하기 위해 입력한 비밀번호가 db에 저장된 비밀번호와 일치하는 지 확인
+      compare_pwd(req.body.pwd, data.pwd);
+    }
+  });
 };
 
 
-
-//로그인
-const login = function (req, res) {
-  const email = req.body.email;
-  const pwd = req.body.pwd;
-  const user_info = users.filter((user) => user.email === email);
-
-  //0, null, undefined가 다 걸러지는지
-  if (!email || !pwd)
-    return res.status(400).send("Please enter correct information");
-  if (!user_info || user_info[0]["pwd"] !== pwd)
-    return res.status(400).send("Not found user");
-
-  res.status(200).send("Success : login");
-};
-
-
-//로그아웃
-const logout = function (req, res) {
-  const user_id = req.body.user_id;
-  const user_info = users.filter((user) => user.id === user_id);
-
-  if (user_info) return res.status(200).send("Success : logout");
-};
-
+//비밀번호 찾기
 const find_pwd = function (req, res) {
   const user_info = users.filter((user) => user.email === req.body.email);
 
@@ -190,7 +196,6 @@ module.exports = {
   create_field,
   delete_account,
   login,
-  logout,
   find_pwd,
   edit_nickname,
   edit_image,
