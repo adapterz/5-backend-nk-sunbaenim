@@ -1,192 +1,222 @@
 //Controllers for users
 const User = require("../models/user.model");
-const bcrypt = require('bcryptjs');
+const bcrypt = require("bcryptjs");
 
 //상태코드 상수화
 const status_code = {
   success: 200,
-  upload_success: 201,
+  upload_success: 204,
   invalid_input: 400,
-  forbidden: 401,
+  unauthorized: 401,
   not_found_user: 404,
+  already_existed_data: 409,
+  unprocessable_entity: 422,
   server_error: 500,
 };
 
 // http post "users/signup" 요청 시 응답 (회원가입)
-const create_account = async function (req, res) {
+const create_account = async (req, res, next) => {
+  try {
+    const { email, pwd } = req.body;
+    const existed_email = await User.find_by_email(email);
 
-  //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정.
-  const hash_pwd = await bcrypt.hash(req.body.pwd, 10);
-
-  //Create user account
-  const user = {
-    email: req.body.email,
-    pwd: hash_pwd,
-    //validate.account 미들웨어로 유효성 검사를 완료한 뒤 데이터를 받기 때문에, pwd와 pwd_check는 같은 값 입력
-    pwd_check: hash_pwd,
+    //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정.
+    //TODO: 보안에 조금 더 신경쓴다면 salt를 따로 파일로 빼서 보안한다.
+    const hash_pwd = await bcrypt.hash(pwd, 10);
     //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 UPDATE users SET nickname where id 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
-    nickname: " ",
+    const nickname = " ";
     //signup(회원가입한 날짜)
-    signup: new Date().toISOString().slice(0, 10).replace("T", " "),
-    signout: null,
-    //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록
-    field_id: 0,
-  };
+    const signup_at = new Date().toISOString().slice(0, 10).replace("T", " ");
+    const signout_at = null;
+    //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록, 다음 가입 페이지에서 업데이트 될 예정.
+    const field_id = 0;
 
-  //Save account in the database
-  User.create_account(user, (err, data) => {
-    if (err) return res.status(status_code.server_error);
-    res.send(data);
-  });
+    if (existed_email.length !== 0) {
+      //이미 존재하는 유저가 있으므로 상태코드 409 반환
+      return res.status(status_code.already_existed_data).json({
+        message: "The email already in use!",
+      });
+    }
+
+    //Save account in the database
+    await User.create(email, hash_pwd, hash_pwd, nickname, signup_at, signout_at, field_id);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204
+    return res.status(status_code.upload_success).json({
+      message: "The user has been successfully created."
+    })
+
+  } catch (err) {
+    next(err);
+  }
 };
 
-// http post "users/:user_id/nickname" 요청 시 응답 (닉네임 등록)
-const create_nickname = function (req, res) {
-  //user_id(유저 식별자)는 문자열로 받아오기 때문에 십진법 숫자로 바꿈.
-  const user_id = parseInt(req.params.user_id, 10);
-  
-  //Validate nickname POST request
-  if (!req.body.nickname) return res.status(status_code.invalid_input);
+// http POST "users/:user_id/nickname" 요청 시 응답 (닉네임 등록)
+const create_nickname = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const { nickname } = req.body;
+    const existed_nickname = await User.find_by_nickname(nickname);
+    console.log(existed_nickname);
 
-  //Save nickname info in users database
-  User.create_nickname(user_id, req.body.nickname, (err, data) => {
-    if (err) return res.status(status_code.server_error);
-    res.send(data);
-  });
+    //Validate nickname POST request
+    //FIXME: 닉네임 유효성 검사는 간단한데, 미들웨어를 별도로 두어야할지, 아니면 이렇게 직접 컨트롤러 안에 넣어도 될지 고민
+    if (!nickname) return res.status(status_code.invalid_input).send("Please input user nickname!");
+    if (existed_nickname.length > 0) {
+      //이미 존재하는 유저가 있으므로 상태코드 409 반환
+      return res.status(status_code.already_existed_data).json({
+        message: "The nickname already in use!",
+      });
+    }
+
+    //Save nickname info in users database
+    await User.update_nickname(nickname, user_id);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+    return res.status(status_code.upload_success);
+  } catch(err) {
+    next(err);
+  }
 };
 
 // POST: "/:user_id/fields" 유저의 관심 분야 입력 요청 시 응답
-// field: 유저가 선택하는 자신의 IT 분야(ex. 프론트엔드, 백엔드, 데브옵스 등등), 필드는 숫자를 통해 판별하기로 한다.
-const create_field = function (req, res) {
-  const user_id = parseInt(req.params.user_id, 10);
+// field : 유저가 선택하는 자신의 IT 분야(ex. 프론트엔드, 백엔드, 데브옵스 등등), 필드는 숫자를 통해 판별하기로 한다.
+const create_field = async (req, res, next) => {
+  try{
+    const { user_id } = req.params;
+    const { field_id } = req.body;
 
-  //Validate field POST request
-  if (!req.body.field_id) return res.status(status_code.invalid_input);
+    //Validate field_id POST request
+    //FIXME: 닉네임 유효성 검사는 간단한데, 미들웨어를 별도로 두어야할지, 아니면 이렇게 직접 컨트롤러 안에 넣어도 될지 고민
+    if (!field_id) return res.status(status_code.invalid_input).send("Please input field id!");
 
-  //Save field info in users database
-  User.create_field(user_id, req.body.field_id, (err, data) => {
-    if (err) return res.status(status_code.invalid_input);
-    res.status(status_code.upload_success).send(data);
-  });
+    await User.update_field_id(field_id, user_id);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+    return res.status(status_code.upload_success)
+  } catch(err) {
+    next(err);
+  }
 };
 
 // POST: "/:user_id/image" 유저의 프로필 이미지 등록 요청 시 응답 (이미지 등록)
-const create_profile_image = function (req, res) {
-  const user_id = parseInt(req.params.user_id, 10);
-  //새로운 파일 생성 시, 유저 식별 아이디, 파일명, 생성일자 삽입
-  const new_file = {
-    user_id: user_id,
-    file_name: req.file.filename,
-    create_at: new Date(),
-  };
+const create_profile_image = async (req, res, next) => {
+  try {
+    const { filename } = req.file;
+    const { user_id } = req.params;
+    const create_at = new Date();
+    //기존에 프로필 이미지를 등록한 이력이 있는 유저인지 확인
+    const find_file = await User.find_file_by_id(user_id);
 
-  //Save file info in files database
-  User.create_profile(user_id, new_file, (err) => {
-    if (err) return res.status(status_code.invalid_input);
-    res.status(status_code.upload_success).send(req.file);
-  });
+    //만약 기존에 등록한 유저라면? Update file
+    if(find_file.length !== 0) {
+      await User.update_profile_image(user_id, filename, create_at);
+      //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+      return res.status(status_code.upload_success)
+    }
+
+    //만약 처음 이미지를 등록하는 유저라면? Create file
+    await User.create_profile_image(user_id, filename, create_at);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+    return res.status(status_code.upload_success)
+  } catch(err) {
+    next(err);
+  }
 };
 
 // POST: "/login" 유저 로그인 요청 시 응답
-const login = function (req, res){
-  User.login(req.body.email, (err, data) => {
-    //유저가 로그인하기 위해 입력한 email 정보가 db에 없는 경우 에러 메시지 응답
-    if(err) return res.status(status_code.not_found_user).send("아이디 또는 비밀번호를 확인하세요.");
+const login = async (req, res, next) => {
+  try{
+    const { email, pwd } = req.body;
+    //유저가 입력한 이메일 주소로 가입된 유저의 정보 받아오기
+    const find_user = await User.find_by_email(email);
 
-    //유저가 로그인하기 위해 입력한 email 정보가 db에 있는 경우, user 정보 data로 출력
-    if(data){
-      const compare_pwd = async function (pwd, target){
-        const match = await bcrypt.compare(pwd, target);
-        if(match) {
-          //비밀번호가 일치하는 경우 세션에 유저의 식별자 id 저장
-          req.session.user_id = data.id;
-          return res.status(status_code.success).send(`${data.nickname}` + "님 환영합니다.");
-        }
-        //비밀번호가 일치하지 않는 경우 에러 메시지 응답
-        if(!match) return res.status(status_code.not_found_user).send("아이디 또는 비밀번호를 확인하세요.");
-      }
-      //유저가 로그인하기 위해 입력한 비밀번호가 db에 저장된 비밀번호와 일치하는 지 확인
-      compare_pwd(req.body.pwd, data.pwd);
+    //유저가 로그인하기 위해 입력한 email 정보가 db에 없는 경우, 401 에러 메시지 응답
+    if(find_user.length === 0){
+      return res.status(status_code.unauthorized).json({
+        //메시지 : 유저 정보의 보안을 위해 아이디와 비밀번호 중 오류 지점을 명확히 하지 않음.
+        message: "Chekch your id or password",
+      });
     }
-  });
+
+    const compare_pwd = await bcrypt.compare(pwd, find_user[0].pwd);
+    //비밀번호가 일치하는 경우 세션에 유저의 식별자 id 저장
+    if(compare_pwd === true){
+      req.session.user_id = find_user[0].id;
+      return res
+      .status(status_code.success)
+      .send(`${find_user[0].nickname}` + " 님, 환영합니다.");
+    }
+    //비밀번호가 일치하지 않는 경우,409 에러 메시지 응답
+    res.status(status_code.unauthorized).json({
+      message: "Chekch your id or password"
+    });
+  } catch(err) {
+    next(err);
+  }
 };
 
-
 //비밀번호 찾기
-const find_pwd = function (req, res) {
-  const user_info = users.filter((user) => user.email === req.body.email);
+//FIXME: node mailer 도입하여 수정 예정
+const find_pwd = async (req, res, next) => {
+  try{
+    const { email } = req.body;
+    const find_user = await User.find_by_email(email);
 
-  //유저가 메일 주소를 입력하지 않았을 경우
-  if (req.body.email === "") return res.status(400).send("Email required");
-  //가입된 적 없는 메일 주소를 입력했을 경우
-  if (!user_info) return res.status(404).send("Not found user");
+    if(find_user.length === 0) return res.status(status_code.not_found_user).send("Not found user");
 
-  res.status(200).send("Success : Change pwd");
+  } catch(err) {
+    next(err);
+  }
 };
 
 //회원탈퇴
-const delete_account = function (req, res) {
-  const pwd = req.body.pwd;
-  //유저가 탈퇴를 진행하기 위해 입력한 비밀번호가 가입된 유저 정보에 있는지 확인,
-  //0이면 비밀번호 오류, 1이면 비밀번호 일치하여 탈퇴 프로세스 진행 가능
-  const check_pwd_input = users.filter((user) => user.pwd === pwd).length;
+// PATCH /:user_id/signout
+const delete_account = async (req, res, next) => {
+  try{
+    const { user_id } = req.params;
+    const { pwd } = req.body;
+    //회원 탈퇴를 위해 유저가 입력한 비밀번호와 유저의 식별자 id 값을 통해 확인한 비밀번호가 일치하는 지 확인
+    const find_user = await User.find_by_id(user_id);
+    const compare_pwd = await bcrypt.compare(pwd, find_user[0].pwd);
 
-  if (!check_pwd_input)
-    //400번
-    return res.status(400).send("Please enter correct information");
-  //데이터를 아예 삭제하는 것이 아니라 filter 함수를 통해 데이터를 바꿔치기 한다.
-  users = users.filter((user) => user.pwd !== pwd);
-  res.status(204).send("Success : signout");
+    //회원 탈퇴한 유저의 경우 식별자 id 값을 제외하고 email, pwd, nickname은 null 처리, 탈퇴일자 업데이트 (탈퇴 일자가 필요한 정보일지? -> 나중에 유저가 재가입 시 해당 정보가 필요한지?)
+    const null_email = "";
+    const null_pwd = "";
+    const null_nickname = "";
+    const signout_at = new Date().toISOString().slice(0, 10).replace("T", " ");
+
+    //유저가 탈퇴를 위해 입력한 비밀번호와 db 내 저장된 비밀번호가 일치하지 않는다면, 409 에러 메시지
+    if(!compare_pwd) return res.status(status_code.unauthorized).send("Invalid password");
+
+    await User.delete(null_email, null_pwd, null_nickname, signout_at, user_id);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+    return res.status(status_code.upload_success);
+  } catch(err) {
+    next(err);
+  }
 };
 
-const edit_nickname = function (req, res) {
-  const nickname = req.body.nickname;
-  //user_id는 문자열로 받아오기 때문에 십진법 숫자로 바꿔줍니다.
-  const user_id = parseInt(req.params.user_id, 10);
-  const user_info = users.filter((user) => user.id === user_id);
-  const is_duplicated = users.filter(
-    (user) => user.nickname === nickname
-  ).length;
 
-  if (!nickname)
-    return res.status(400).send("Please enter correct information");
-  if (is_duplicated) return res.status(409).send("Nickname already existed");
+//비밀번호 변경
+//PATCH /:user_id/pwd
+const edit_pwd = async (req, res, next) => {
+  try{
+    const { user_id } = req.params;
+    const { new_pwd } = req.body;
+    //비밀번호 변경을 위해 유저가 입력한 비밀번호와 db에 저장된 비밀번호와 일치하는 정보가 있는지 확인
+    const find_user = await User.find_by_id(user_id);
+    //일치하는 비밀번호가 없는 경우, 409 에러 메시지 응답
+    if(find_user.length === 0) return res.status(status_code.unauthorized).send("not found user");
 
-  user_info[0]["nickname"] = nickname;
-  res.status(201).send("Success : nickname changed");
-};
-
-const edit_image = function (req, res) {
-  const image = req.params.image;
-  const user_id = parseInt(req.params.user_id, 10);
-  const user_info = users.filter((user) => user.id === user_id);
-
-  //FIXME: 이미지 사이즈가 클 경우
-  if (!image) return res.status(413).send("Image size is too big");
-
-  user_info[0]["profile_image"] = image;
-  res.status(200).send("Success : Update profile image");
-};
-
-const edit_pwd = function (req, res) {
-  const pwd = req.body.pwd;
-  const new_pwd = req.body.new_pwd;
-  const new_pwd_check = req.body.new_pwd_check;
-  const search_pwd = users.filter((user) => user.pwd === pwd);
-
-  //유저가 정보를 입력하지 않은 경우
-  if (!pwd || !new_pwd)
-    return res.status(400).send("Please enter correct information");
-  //비밀번호와 비밀번호 확인이 일치하지 않은 경우
-  if (new_pwd !== new_pwd_check)
-    return res.status(400).send("New pwd not matched");
-  //유저가 틀린 비밀번호를 입력했을 경우
-  if (!search_pwd) return res.status(404).send("Wrong pwd");
-
-  search_pwd[0]["pwd"] = new_pwd;
-  //new_pwd_check를 통해 동일하게 입력되었는지 위에서 확인했으므로 같은 변수값 할당
-  search_pwd[0]["pwd_check"] = new_pwd;
-  res.status(200).send("Success : Change pwd");
+    //일치하는 비밀번호가 있다면, 업데이트 할 예정인 비밀번호를 암호화
+    const hash_pwd = await bcrypt.hash(new_pwd, 10);
+    //암호화한 새 비밀번호로 db 업데이트
+    await User.update_pwd(hash_pwd, user_id);
+    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
+    return res.status(status_code.upload_success).json({
+      message: "The user pwd has been successfully updated."
+    })
+  } catch(err) {
+    next(err)
+  }
 };
 
 module.exports = {
@@ -197,7 +227,5 @@ module.exports = {
   delete_account,
   login,
   find_pwd,
-  edit_nickname,
-  edit_image,
   edit_pwd,
 };
