@@ -1,135 +1,109 @@
 //db 연결
-const sql = require("../config/mysql")
+const sql = require("../config/mysql");
 
-//FIXME: 리팩토링 고민 필요.
 const User = {
   //DB에 새로운 유저의 계정 정보 저장
-  create_account: function (new_user, result) {
-    //유저의 새로운 정보를 입력하기 전, 기존 가입 유저인지 email로 확인
-    sql.query(
-      "SELECT email FROM users WHERE email = ?",
-      new_user.email,
-      (err, rows) => {
-        //기존 가입 이력이 없다면? DB 생성
-        if (rows.length == 0) {
-          return sql.query("INSERT INTO users SET ?", new_user, (err, res) => {
-            if (err) {
-              console.log("error: ", err);
-              result(err, null);
-              return;
-            }
-            console.log("User account is created");
-            result(null, res);
-          });
-        }
-        console.log("existed email of user: ", rows[0]);
-        result(null, rows[0]);
-      }
+  create: async function (
+    email,
+    pwd,
+    pwd_check,
+    nickname,
+    signup_at,
+    signout_at,
+    field_id
+  ) {
+    sql.execute(
+      "INSERT INTO users (email, pwd, pwd_check, nickname, signup, signout, field_id) VALUES (?,?,?,?,?,?,?)",
+      [email, pwd, pwd_check, nickname, signup_at, signout_at, field_id]
     );
+  },
+
+  //입력된 이메일을 통해 유저 정보 확인
+  find_by_email: async function (email) {
+    const [row] = await sql.execute("SELECT * FROM users WHERE email = ?", [
+      email,
+    ]);
+    return row;
+  },
+
+  //기존 유저들 중 중복되는 닉네임이 있는지 확인
+  find_by_nickname: async function (nickname) {
+    const [row] = await sql.execute(
+      "SELECT nickname FROM users WHERE nickname = ?",
+      [nickname]
+    );
+    return row;
+  },
+
+  //유저 식별자인 id을 통해 유저 정보 확인
+  find_by_id: async function (user_id) {
+    const [row] = await sql.execute("SELECT * FROM users WHERE id = ?", [
+      user_id,
+    ]);
+    return row;
   },
 
   //신규 유저의 닉네임 정보 추가
-  create_nickname: function (user_id, nickname, result) {
-    //닉네임이 기존 유저와 중복되는 지 확인
-    sql.query(
-      "SELECT nickname FROM users WHERE nickname = ?",
+  update_nickname: async function (nickname, user_id) {
+    sql.execute("UPDATE users SET nickname = ? WHERE id = ?", [
       nickname,
-      (err, rows) => {
-        //만약 중복되는 부분이 없다면, req.params 로 받은 id를 가진 유저의 닉네임에 추가
-        if (rows.length == 0) {
-          return sql.query(
-            "UPDATE users SET nickname = ? WHERE id =?",
-            [nickname, user_id],
-            (err, res) => {
-              if (err) {
-                console.log("error: ", err);
-                result(err, null);
-                return;
-              }
-              console.log("User nickname is created");
-              result(null, res);
-            }
-          );
-        }
-        //만약 중복된다면 어떤 닉네임이 중복되는 지 응답
-        console.log("existed nickname of user: ", rows[0]);
-        result(null, rows[0]);
-      }
-    );
+      user_id,
+    ]);
   },
 
   //신규 유저의 관심 분야 정보 추가
-  create_field: function (user_id, field_id, result) {
-    sql.query(
-      "UPDATE users SET field_id = ? WHERE id = ?",
-      [field_id, user_id],
-      (err, res) => {
-        if (err) {
-          console.log("error: ", err);
-          result(err, null);
-          return;
-        }
-        console.log("User field is updated");
-        result(null, res);
-      }
-    );
+  update_field_id: async function (field_id, user_id) {
+    sql.execute("UPDATE users SET field_id = ? WHERE id = ?", [
+      field_id,
+      user_id,
+    ]);
+  },
+
+  //유저의 비밀번호 변경
+  update_pwd: async function (new_pwd, user_id) {
+    sql.execute("UPDATE users SET pwd = ?, pwd_check = ? WHERE id = ?", [
+      new_pwd,
+      new_pwd,
+      user_id,
+    ]);
+  },
+
+  //유저의 프로필 이미지 등록 여부 확인
+  find_file_by_id: async function (user_id) {
+    const [row] = await sql.execute("SELECT * FROM files WHERE user_id = ?", [
+      user_id,
+    ]);
+    return row;
   },
 
   //유저의 프로필 이미지 추가
-  create_profile: function (user_id, new_file, result) {
-    //유저 id를 통해 기존에 프로필 이미지가 등록된 유저인지 확인
-    sql.query(
-      "SELECT user_id FROM files WHERE user_id = ?",
-      user_id,
-      (err, rows) => {
-        //기존에 프로필 이미지를 등록한 적이 없는 유저라면, 새로 생성
-        if (rows.length == 0)
-          return sql.query("INSERT INTO files SET ?", new_file, (err, res) => {
-            if (err) {
-              console.log("error: ", err);
-              result(err, null);
-              return;
-            }
-            console.log("User profile is created");
-            result(null, res);
-          });
-        //기존에 프로필 이미지를 등록했던 유저라면, 이미지 새로 갱신
-        if (rows.length !== 0)
-          return sql.query(
-            "UPDATE files SET ? WHERE user_id = ?",
-            [new_file, user_id],
-            (err, res) => {
-              if (err) {
-                console.log("error: ", err);
-                result(err, null);
-                return;
-              }
-              console.log("User nickname is updated");
-              result(null, res);
-            }
-          );
-      }
+  create_profile_image: async function (user_id, file_name, create_at) {
+    sql.execute(
+      "INSERT INTO files (user_id, file_name, create_at) VALUES (?,?,?)",
+      [user_id, file_name, create_at]
     );
   },
 
-  //유저 로그인
-  login: function (email, result) {
-    //유저가 입력한 이메일이 존재하는 지 확인
-    sql.query("SELECT * FROM users WHERE email = ?", email, (err, res) => {
-      if (err) {
-        console.log("error: ", err);
-        result(err, null);
-        return;
-      }
-      //유저가 존재한다면, 유저 정보를 담은 db row를 반환
-      if (res[0]) {
-        console.log("found user: " + JSON.stringify(res[0]));
-        return result(null, res[0]);
-      }
+  //유저의 프로필 이미지 업데이트
+  update_profile_image: async function (user_id, file_name, create_at) {
+    sql.execute(
+      "UPDATE files SET file_name = ?, create_at = ? WHERE user_id = ?",
+      [file_name, create_at, user_id]
+    );
+  },
 
-      //not found user with the email
-      return result({ message: "not found user" }, null);
-    });
+  //유저 회원탈퇴 시, 유저 이메일, 비밀번호, 닉네임 정보 초기화, 회원탈퇴일자 업데이트
+  delete: async function (
+    email,
+    pwd,
+    nickname,
+    signout_at,
+    user_id
+  ) {
+    sql.execute(
+      "UPDATE users SET email = ?, pwd = ?, nickname = ?, signout_at = ? WHERE id = ?",
+      [email, pwd, nickname, signout_at, user_id]
+    );
   },
 };
 
