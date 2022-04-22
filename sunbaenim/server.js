@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 //Since version 1.5.0, the cookie-parser middleware no longer needs to be used for this module to work.
 const session = require('express-session');
+const helmet = require('helmet');
+const csp = require('helmet-csp');
 
 const app = express();
 
@@ -12,6 +14,19 @@ app.use(session({
   //test를 위해 쿠키 maxAge는 1시간으로 디폴트 설정
   cookie: {maxAge : 3600 * 1000} //1 hour
 }))
+app.use(helmet());
+//Content Security Policy middleware
+app.use(
+  csp({
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self"],
+      scriptSrc: ["'self'"],
+    },
+    reportOnly: false,
+  })
+);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
