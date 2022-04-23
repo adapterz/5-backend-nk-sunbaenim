@@ -20,6 +20,7 @@ app.use(session({
   //test를 위해 쿠키 maxAge는 1시간으로 디폴트 설정
   cookie: {maxAge : 3600 * 1000} //1 hour
 }))
+
 app.use(helmet());
 //Content Security Policy middleware
 app.use(
