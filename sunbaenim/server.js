@@ -4,8 +4,14 @@ const bodyParser = require("body-parser");
 const session = require('express-session');
 const helmet = require('helmet');
 const csp = require('helmet-csp');
-
 const app = express();
+
+//Routers
+const users = require("./routers/user.router");
+const articles = require("./routers/article.router");
+const bookmarks = require("./routers/bookmark.router");
+const comments = require("./routers/comment.router");
+const notifications = require("./routers/notification.router");
 
 app.use(session({
   secret: 'sunbaenimhost',
@@ -30,13 +36,6 @@ app.use(
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-//Routers
-const users = require("./routers/user.router");
-const articles = require("./routers/article.router");
-const bookmarks = require("./routers/bookmark.router");
-const comments = require("./routers/comment.router");
-const notifications = require("./routers/notification.router");
 
 
 app.use("/users", users);
