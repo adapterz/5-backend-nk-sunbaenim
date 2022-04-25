@@ -2,6 +2,7 @@ const { body, validationResult } = require("express-validator");
 
 //에러코드 상수화
 const status_code = {
+  //클라이언트에서 요청을 잘못된 형식으로 입력 했을 때
   invalid_input: 400,
 }
 
