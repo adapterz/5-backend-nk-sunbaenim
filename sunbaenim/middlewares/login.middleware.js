@@ -31,10 +31,10 @@ module.exports = [
     if(errors.isEmpty()) return next();
 
     if(!errors.isEmpty() && errors.errors[0].param === 'email') {
-      return res.status(status_code.invalid_input).json({message: errors.array()});
+      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg});
     }
     if(!errors.isEmpty() && errors.errors[0].param === 'pwd'){
-      return res.status(status_code.invalid_input).json({message: errors.array()})
+      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg});
     }
   }
 ];
