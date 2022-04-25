@@ -32,7 +32,7 @@ router.patch("/:user_id/nickname", ctrl.create_nickname);
 //이미지 등록과 변경 시, 동일한 알고리즘이므로 같은 컨트롤러 사용
 router.post("/:user_id/image", upload.single('avatar'), ctrl.create_profile_image);
 //내 프로필 이미지 변경
-router.patch("/:user_id/nickname", upload.single('avatar'), ctrl.create_profile_image);
+router.patch("/:user_id/image", upload.single('avatar'), ctrl.create_profile_image);
 
 //내 관심분야 등록
 router.post("/:user_id/fields", ctrl.create_field);
@@ -50,7 +50,8 @@ router.get("/logout", (req, res, next) => {
 });
 
 //비밀번호 찾기
-router.post("/pwd_search", ctrl.find_pwd);
+//서버 내에서는 데이터 수정이긴 하지만, 클라이언트 개발자 입장에서는 삭제이기 때문에 메소드는 delete로 한다.
+router.delete("/pwd_search", ctrl.find_pwd);
 
 //회원탈퇴
 router.patch("/:user_id/signout", ctrl.delete_account);
