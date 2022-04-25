@@ -5,7 +5,7 @@ const router = express.Router();
 const ctrl = require("../controllers/comments.ctrl");
 //Middleware
 //댓글의 유효성을 판단하는 미들웨어 (댓글 본문의 최소 글자 수)
-const comment_validation = require("../middlewares/comment.middleware");
+const comment_validation = require("../middlewares/validate.comment");
 //로그인 되어있는 유저인지 확인하는 미들웨어
 const if_not_logged_in = (req, res, next) => {
   if(!req.session.user_id){

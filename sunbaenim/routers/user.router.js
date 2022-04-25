@@ -5,7 +5,7 @@ const router = express.Router();
 const ctrl = require("../controllers/users.ctrl");
 //Middlewares
 const account_validation = require("../middlewares/validate.account.middleware");
-const pwd_validation = require("../middlewares/validate.pwd.middleware");
+const pwd_validation = require("../middlewares/validate.pwd");
 const login_validation = require("../middlewares/login.middleware");
 const upload = require("../middlewares/multer.middleware");
 

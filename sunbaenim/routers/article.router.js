@@ -5,7 +5,7 @@ const router = express.Router();
 const ctrl = require("../controllers/articles.ctrl");
 //Middlewares
 //게시글의 유효성을 판단하는 미들웨어 (제목 및 본문의 최소 글자 수)
-const article_validation = require("../middlewares/article.middleware");
+const article_validation = require("../middlewares/validate.article");
 const upload = require("../middlewares/multer.middleware");
 
 //로그인 되어있는 유저인지 확인하는 미들웨어
