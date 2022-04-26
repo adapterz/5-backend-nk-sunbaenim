@@ -24,25 +24,25 @@ router.post("/signup", if_logged_in, account_validation, ctrl.create_account);
 
 //내 닉네임 등록
 //닉네임 등록과 변경 시, 동일한 알고리즘이므로 같은 컨트롤러 사용
-router.post("/:user_id/nickname", ctrl.create_nickname);
+router.post("/:user_id/nickname", if_logged_in, ctrl.create_nickname);
 //내 닉네임 변경
-router.patch("/:user_id/nickname", ctrl.create_nickname);
+router.patch("/:user_id/nickname", if_logged_in, ctrl.create_nickname);
 
 //내 프로필 이미지 등록
 //이미지 등록과 변경 시, 동일한 알고리즘이므로 같은 컨트롤러 사용
-router.post("/:user_id/image", upload.single('avatar'), ctrl.create_profile_image);
+router.post("/:user_id/image",if_logged_in, upload.single('avatar'), ctrl.create_profile_image);
 //내 프로필 이미지 변경
-router.patch("/:user_id/image", upload.single('avatar'), ctrl.create_profile_image);
+router.patch("/:user_id/image",if_logged_in, upload.single('avatar'), ctrl.create_profile_image);
 
 //내 관심분야 등록
-router.post("/:user_id/fields", ctrl.create_field);
+router.post("/:user_id/fields", if_logged_in, ctrl.create_field);
 
 //로그인
 // router.get("/login", ctrl.login_page);
 router.post("/login", if_logged_in, login_validation, ctrl.login);
 
 //로그아웃
-router.get("/logout", (req, res, next) => {
+router.post("/logout", (req, res, next) => {
   req.session.destroy((err) => {
     next(err);
   });
