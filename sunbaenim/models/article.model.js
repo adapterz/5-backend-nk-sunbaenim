@@ -38,7 +38,7 @@ const Article = {
   //게시글의 파일 추가
   create_files: async function (user_id, file_name) {
     //게시글의 파일 생성 일자
-    const create_at = new Date().toISOString().slice(0, 10).replace("T", " ");
+    const create_at = new Date();
     sql.execute(
       "INSERT INTO files (user_id, file_name, create_at) VALUES (?,?,?)",
       [user_id, file_name, create_at]
@@ -49,10 +49,11 @@ const Article = {
   //게시글 수정
   edit: async function (article_id, title, content, category_id) {
     //게시글의 수정 일자
-    const edit_at = new Date().toISOString().slice(0, 10).replace("T", " ");
+    const create_at = new Date();
+    const edit_at = new Date();
     sql.execute(
-      "UPDATE articles SET title = ?, content = ?, category = ?, edit_at = ? WHERE id = ?",
-      [title, content, category_id, edit_at, article_id]
+      "UPDATE articles SET title = ?, content = ?, category = ?, create_at = ?, edit_at = ? WHERE id = ?",
+      [title, content, category_id, create_at, edit_at, article_id]
     );
   },
 
@@ -60,7 +61,7 @@ const Article = {
   delete: async function (article_id) {
     const is_published = 0;
     const create_at = null;
-    const delete_at = new Date().toISOString().slice(0, 10).replace("T", " ");
+    const delete_at = new Date();
     sql.execute(
       "UPDATE articles SET is_published = ?, create_at = ?, delete_at = ? WHERE id = ?",
       [is_published, create_at, delete_at, article_id]
@@ -84,9 +85,30 @@ const Article = {
     return row;
   },
 
-  //게시글 목록 조회
-  get_articles: async function(page, page_size) {}
-    
+
+  //게시판 초기 화면 목록 조회
+  get_articles_init: async function(limit) {
+    const [row] = await sql.query(
+      "SELECT id, user_id, title, total_likes, category, total_comments, create_at FROM articles WHERE is_published = 1 ORDER BY id desc LIMIT ?", [limit]
+    );
+    return row;
+  },
+
+  //게시판 다음 목록 조회
+  get_articles: async function(cursor, limit) {
+    const [row] = await sql.query(
+      "SELECT id, user_id, title, total_likes, category, total_comments, create_at FROM articles WHERE is_published = 1 and id < ? ORDER BY id desc LIMIT ?", [cursor, limit]
+    );
+    return row;
+  },
+
+  //특정 유저가 발행한 게시물 목록 조회
+  get_my_articles: async function(is_published, user_id, offset, limit) {
+    const [row] = await sql.query(
+      "SELECT id, title, total_likes, category, total_comments, create_at FROM articles WHERE is_published = ? and user_id = ? ORDER BY id desc LIMIT ?, ?", [is_published, user_id, offset, limit]
+    );
+    return row;
+  },
 };
 
 module.exports = Article;
