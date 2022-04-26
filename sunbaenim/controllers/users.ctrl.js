@@ -30,17 +30,7 @@ const create_account = async (req, res, next) => {
     const { email, pwd } = req.body;
     const existed_email = await User.find_by_email(email);
 
-    //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정.
-    //TODO: 보안에 조금 더 신경쓴다면 salt를 따로 파일로 빼서 보안한다.
-    const hash_pwd = await bcrypt.hash(pwd, 10);
-    //nickname은 회원가입 페이지 바로 다음 페이지에서 받을 예정이며, DB에서는 UPDATE users SET nickname where id 명령어를 사용하여 변경해 줄 예정. " "인 이유 : not null로 DB data type 설정하였기 때문.
-    const nickname = " ";
-    //signup(회원가입한 날짜)
-    const signup_at = new Date().toISOString().slice(0, 10).replace("T", " ");
-    const signout_at = null;
-    //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록, 다음 가입 페이지에서 업데이트 될 예정.
-    const field_id = 0;
-
+    //이미 존재하는 유저일 경우 굳이 패스워드를 해시하는 코드가 동작 안한다!
     if (existed_email.length !== 0) {
       //이미 존재하는 유저가 있으므로 상태코드 409 반환
       return res.status(status_code.already_existed_data).json({
@@ -48,8 +38,12 @@ const create_account = async (req, res, next) => {
       });
     }
 
+    //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정
+    //TODO: bycrpt에 salt가 필요할까? 필요하지 않다면 왜 필요하지 않는지 명확한 이유 찾기
+    const hash_pwd = await bcrypt.hash(pwd, 10);
+
     //Save account in the database
-    await User.create(email, hash_pwd, hash_pwd, nickname, signup_at, signout_at, field_id);
+    await User.create(email, hash_pwd, hash_pwd);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204
     return res.status(status_code.update_success).end();
 
@@ -152,7 +146,7 @@ const login = async (req, res, next) => {
       req.session.user_id = find_user[0].id;
       return res
       .status(status_code.success)
-      .send(`${find_user[0].nickname}` + " 님, 환영합니다.");
+      .send(`${find_user[0].nickname}`);
     }
     //비밀번호가 일치하지 않는 경우,409 에러 메시지 응답
     res.status(status_code.unauthorized).json({
