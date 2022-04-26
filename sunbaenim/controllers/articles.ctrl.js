@@ -51,10 +51,7 @@ const create_article = async (req, res, next) => {
       delete_at
     );
     console.log("Article Create Success!");
-
-    const result = await Article.find_by_user_id(user_id);
-    //게시글 관련 콘텐츠가 모두 db 안에 생성되면, 201 코드와 함께 article id 반환
-    return res.status(status_code.created).json(result[0].id);
+    return res.status(status_code.created).send("Article Create Success!");
   } catch (err) {
     next(err);
   }
@@ -142,30 +139,84 @@ const get_article = async (req, res, next) => {
   }
 };
 
-//내 게시글 목록 조회
-//GET /:user_id/:is_published/:page/:page_size
+//내가 발행한 글 또는 임시 저장한 글의 목록 조회 (같은 컨트롤러로 적용 가능할 것으로 판단하여 합침)
+//offset pagination으로 구현, 이유 : 유저 게시글 생성 시 데이터 변화가 많이 없을 것으로 생각. 실시간으로 유저가 여러명이 들어와서 게시판을 업데이트 하는 것이 아니고, 유저 개인의 공간이기 때문에 offset으로 구현.
+//GET url 예시 : /:user_id?is_published=1&page=1&limit=5
 const get_my_articles = async (req, res, next) => {
   try {
-    const { user_id, is_published } = req.params;
-    const { page, page_size } = req.query;
+    const { user_id } = req.params;
+    const { is_published } = req.query;
+    //page, limit은 양수이자 최소 1이 되어야 하기 때문에 Math.max 사용
+    //page는 페이지 숫자를 의미 (1 페이지, 2 페이지 등)
+    let page = Math.max(1, parseInt(req.query.page));
+    //limit은 한 페이지 당 보여줄 게시물의 개수를 의미
+    let limit = Math.max(1, parseInt(req.query.size));
+    //만약 정수 외의 값을 받은 경우 기본값을 설정
+    page = !isNaN(page) ? page : 1;
+    limit = !isNaN(limit) ? limit : 10;
+
+    let offset = (page-1)*limit;
+    const articles = await Article.get_my_articles(is_published, user_id, offset, limit);
+    const count_articles = articles.length();
+    const total_pages = Math.ceil(count_articles/limit);
+
+    return res.status(status_code.success).send({
+      data: articles,
+      paging: {
+        total : count_articles,
+        page: page,
+        pages : total_pages
+      }
+    })
+
   } catch (err) {
     next(err);
   }
 };
 
-//내 임시 저장글 목록 조회
-//GET /:user_id/:is_published/:page/:page_size
-const get_my_unpublished_articles = function (req, res) {
-  //유저가 접속된 상태에서 발행된 글을 is_published를 통해 filter하도록 구현
-  const is_published = parseInt(res.params.is_published, 10);
-
-  res.json(articles.filter((article) => article.is_published === 0));
-};
-
 //게시글 목록 조회
-//GET /:category_id/:page/:page_size
-const get_articles = function (req, res) {
-  res.status(200).end();
+//cursor pagination으로 구현
+//GET url 예시 : /articles?limit=5&cursor=13
+const get_articles = async (req, res, next) => {
+  try{
+    //불러올 게시물의 첫번째 인덱스, 첫화면의 경우 0(false)으로 설정
+    const cursor = parseInt(req.query.cursor);
+    //게시물의 인덱스로부터 몇 개의 게시물을 가져올 것인가를 결정
+    const limit = parseInt(req.query.limit);
+
+    //요청시 받아올 게시물들을 담는 변수
+    let articles;
+
+    if(cursor){
+      //만약 cursor가 0이 아니라면 WHERE 절의 id에 값 삽입
+      articles = await Article.get_articles(cursor, limit + 1);
+    } else {
+      //만약 cursor가 0이라면 article db의 가장 마지막 id로부터 데이터 받아오기
+      articles = await Article.get_articles_init(limit + 1);
+    }
+
+    //limit+1과 게시물 데이터들을 담아놓은 변수의 길이가 같다면, 다음에 조회할 데이터가 더 있다는 의미
+    const more_articles = articles.length === limit + 1;
+    //limit+1번째 데이터의 id값을 파악하기 위한 변수
+    let next_cursor = null;
+    if(more_articles){
+      //limit+1번째에 게시물이 있다면, next_cursor에 해당 게시물 id값 넣기
+      next_cursor = articles[limit].id;
+      //limit+1번째 데이터는 요청 데이터가 아니기 때문에 끝에서 제외
+      articles.pop();
+    }
+
+    return res.status(status_code.success).send({
+      data: articles,
+      paging: {
+        more_articles,
+        next_cursor,
+      }
+    })
+
+  } catch(err) {
+    next(err);
+  }
 };
 
 //검색시 게시글 조회
@@ -206,7 +257,6 @@ module.exports = {
   edit_article,
   delete_article,
   get_my_articles,
-  get_my_unpublished_articles,
   get_article,
   get_articles,
   query_articles,
