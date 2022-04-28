@@ -7,11 +7,15 @@ const User = {
     email,
     pwd,
     pwd_check,
-    nickname,
-    signup_at,
-    signout_at,
-    field_id
   ) {
+    //nickname은 회원가입 페이지 바로 다음 페이지에서 업데이트 예정
+    const nickname = " ";
+    //signup(회원가입한 날짜)
+    const signup_at = new Date();
+    //회원 탈퇴한 날짜
+    const signout_at = null;
+    //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록, 다음 가입 페이지에서 업데이트 될 예정
+    const field_id = 0;
     sql.execute(
       "INSERT INTO users (email, pwd, pwd_check, nickname, signup, signout, field_id) VALUES (?,?,?,?,?,?,?)",
       [email, pwd, pwd_check, nickname, signup_at, signout_at, field_id]
@@ -44,6 +48,7 @@ const User = {
   },
 
   //신규 유저의 닉네임 정보 추가
+  //FIXME: 리턴 값을 줘서 업데이트가 정말 잘 되었는지 클라이언트에게 확인 시켜주기
   update_nickname: async function (nickname, user_id) {
     sql.execute("UPDATE users SET nickname = ? WHERE id = ?", [
       nickname,
@@ -52,6 +57,7 @@ const User = {
   },
 
   //신규 유저의 관심 분야 정보 추가
+  //FIXME: 리턴 값을 줘서 업데이트가 정말 잘 되었는지 클라이언트에게 확인 시켜주기
   update_field_id: async function (field_id, user_id) {
     sql.execute("UPDATE users SET field_id = ? WHERE id = ?", [
       field_id,
@@ -60,6 +66,7 @@ const User = {
   },
 
   //유저의 비밀번호 변경
+  //FIXME: 리턴 값을 줘서 업데이트가 정말 잘 되었는지 클라이언트에게 확인 시켜주기
   update_pwd: async function (new_pwd, user_id) {
     sql.execute("UPDATE users SET pwd = ?, pwd_check = ? WHERE id = ?", [
       new_pwd,
