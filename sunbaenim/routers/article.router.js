@@ -33,20 +33,18 @@ router.delete("/:article_id", if_not_logged_in, ctrl.delete_article);
 router.get("/:article_id", ctrl.get_article);
 
 //내가 발행한 글 또는 임시 저장한 글의 목록 조회 (같은 컨트롤러로 적용 가능할 것으로 판단하여 합침)
-//req.query로 요청을 받아 구분할 예정 (url 예시 : /:user_id?is_published=1&page=1&limit=5)
-router.get("/:user_id", if_not_logged_in, ctrl.get_my_articles);
+//req.query로 요청을 받아 구분할 예정 (url 예시 : /articles/:is_published?page&size)
+router.get("/my/:is_published", if_not_logged_in, ctrl.get_my_articles);
 
 //게시판 목록 조회
-//FIXME: 아래 URL로 주제별, 좋아요 순, 게시글 생성순, 조회수 순, 댓글 순으로 구분할 수 있을까? 확인 필요.
-//endpoint example : /articles?page&size
+//req.query로 요청을 받아 구분할 예정 (url 예시 : /articles?limit&cursor)
 router.get("/", ctrl.get_articles);
 
-//게시판 목록 조회(검색 시)
-//URL info : keyword(검색 키워드)
-router.get("/:category_id/:page/:page_size/:keyword", ctrl.query_articles);
+//게시글 검색
+//req.query로 요청을 받아 구분할 예정 (url 예시 : /search/:category_id?key&limit&cursor)
+router.get("/search/:category_id", ctrl.query_articles);
 
 //게시글 좋아요 생성 및 삭제
-router.post("/:article_id", if_not_logged_in, ctrl.create_like);
-router.post("/:article_id", if_not_logged_in, ctrl.delete_like);
+router.post("/:article_id/likes", if_not_logged_in, ctrl.like_on_off);
 
 module.exports = router;
