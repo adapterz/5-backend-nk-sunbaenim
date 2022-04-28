@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 //Since version 1.5.0, the cookie-parser middleware no longer needs to be used for this module to work.
 const session = require('express-session');
+//조회수 파악 목적을 위해 cookie-parser 모듈 설치 - 왜 세션이 아닌 쿠키로 조회수 처리를? session에 조회수 정보를 처리하기엔 서버가 부담이 되므로
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const csp = require('helmet-csp');
 const app = express();
@@ -13,12 +15,17 @@ const bookmarks = require("./routers/bookmark.router");
 const comments = require("./routers/comment.router");
 const notifications = require("./routers/notification.router");
 
+app.use(cookieParser());
 app.use(session({
   secret: 'sunbaenimhost',
   resave: false,
   saveUninitialized: true,
-  //test를 위해 쿠키 maxAge는 1시간으로 디폴트 설정
-  cookie: {maxAge : 3600 * 1000} //1 hour
+  //쿠키에 들어가는 세션 ID 값의 옵션
+  cookie: {
+    //FIXME: 어차피 브라우저를 끄고 다시 접속했을 때, 아직 쿠키 만료 기간이 남았음에도 새로운 쿠키를 생성하기 때문에, maxAge 딱히 의미 없을 것으로 생각..
+    //FIXME: 세션 저장 store를 따로 만들어야 할까? 메모리에 저장하는 것은 너무 큰 부담
+    maxAge : 3600 * 1000
+  }
 }))
 
 app.use(helmet());
