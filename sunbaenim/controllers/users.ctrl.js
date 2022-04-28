@@ -1,4 +1,5 @@
-const User = require("../models/user.model");
+//Models 상수화
+const Models = require("../models/models");
 const bcrypt = require("bcryptjs");
 
 //상태코드 상수화
@@ -12,15 +13,11 @@ const status_code = {
   //클라이언트에서 요청을 잘못된 형식으로 했을 때
   invalid_input: 400,
   //아이디나 비밀번호를 잘못 입력했을 때
-  unauthorized: 401,
-  //찾고자 하는 데이터가 db에 없을 때
-  not_found_article: 404,
+  unauthenticated: 401,
   //찾고자 하는 데이터가 db에 없을 때
   not_found_user: 404,
   //이미 존재하는 데이터가 db에 있을 때(중복 정보 검사)
   already_existed_data: 409,
-  //서버가 요청을 이해하고 요청 문법도 올바르나 요청된 지시를 따를 수 없는 상태
-  unprocessable_entity: 422,
   server_error: 500,
 };
 
@@ -28,7 +25,7 @@ const status_code = {
 const create_account = async (req, res, next) => {
   try {
     const { email, pwd } = req.body;
-    const existed_email = await User.find_by_email(email);
+    const existed_email = await Models.User.find_by_email(email);
 
     //이미 존재하는 유저일 경우 굳이 패스워드를 해시하는 코드가 동작 안한다!
     if (existed_email.length !== 0) {
@@ -43,7 +40,7 @@ const create_account = async (req, res, next) => {
     const hash_pwd = await bcrypt.hash(pwd, 10);
 
     //Save account in the database
-    await User.create(email, hash_pwd, hash_pwd);
+    await Models.User.create(email, hash_pwd, hash_pwd);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204
     return res.status(status_code.update_success).end();
 
@@ -57,7 +54,7 @@ const create_nickname = async (req, res, next) => {
   try {
     const { user_id } = req.params;
     const { nickname } = req.body;
-    const existed_nickname = await User.find_by_nickname(nickname);
+    const existed_nickname = await Models.User.find_by_nickname(nickname);
     console.log(existed_nickname);
 
     //Validate nickname POST request
@@ -71,7 +68,7 @@ const create_nickname = async (req, res, next) => {
     }
 
     //Save nickname info in users database
-    await User.update_nickname(nickname, user_id);
+    await Models.User.update_nickname(nickname, user_id);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
     return res.status(status_code.update_success).end();
   } catch(err) {
@@ -90,7 +87,7 @@ const create_field = async (req, res, next) => {
     //유저가 제대로 된 입력값을 넣지 않았으므로 상태코드 400 반환
     if (!field_id) return res.status(status_code.invalid_input).send("Please input field id!");
 
-    await User.update_field_id(field_id, user_id);
+    await Models.User.update_field_id(field_id, user_id);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
     return res.status(status_code.update_success).end();
   } catch(err) {
@@ -106,18 +103,18 @@ const create_profile_image = async (req, res, next) => {
     const { user_id } = req.params;
     const create_at = new Date();
     //기존에 프로필 이미지를 등록한 이력이 있는 유저인지 확인
-    const find_file = await User.find_file_by_id(user_id);
+    const find_file = await Models.User.find_file_by_id(user_id);
 
     //만약 기존에 등록한 유저라면? Update file
     if(find_file.length !== 0) {
-      await User.update_profile_image(user_id, filename, create_at);
+      await Models.User.update_profile_image(user_id, filename, create_at);
       console.log("업데이트 완료");
       //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
       return res.status(status_code.update_success).end();
     }
 
     //만약 처음 이미지를 등록하는 유저라면? Create file
-    await User.create_profile_image(user_id, filename, create_at);
+    await Models.User.create_profile_image(user_id, filename, create_at);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
     return res.status(status_code.update_success).end();
   } catch(err) {
@@ -130,11 +127,11 @@ const login = async (req, res, next) => {
   try{
     const { email, pwd } = req.body;
     //유저가 입력한 이메일 주소로 가입된 유저의 정보 받아오기
-    const find_user = await User.find_by_email(email);
+    const find_user = await Models.User.find_by_email(email);
 
     if(find_user.length === 0){
       //유저가 로그인하기 위해 입력한 email 정보가 db에 없는 경우, 401 에러 메시지 응답
-      return res.status(status_code.unauthorized).json({
+      return res.status(status_code.unauthenticated).json({
         //메시지 : 유저 정보의 보안을 위해 아이디와 비밀번호 중 오류 지점을 명확히 하지 않음.
         message: "Chekch your id or password",
       });
@@ -146,10 +143,10 @@ const login = async (req, res, next) => {
       req.session.user_id = find_user[0].id;
       return res
       .status(status_code.success)
-      .send(`${find_user[0].nickname}`);
+      .send("User logged in!");
     }
     //비밀번호가 일치하지 않는 경우,409 에러 메시지 응답
-    res.status(status_code.unauthorized).json({
+    res.status(status_code.unauthenticated).json({
       message: "Chekch your id or password"
     });
   } catch(err) {
@@ -162,7 +159,7 @@ const login = async (req, res, next) => {
 const find_pwd = async (req, res, next) => {
   try{
     const { email } = req.body;
-    const find_user = await User.find_by_email(email);
+    const find_user = await Models.User.find_by_email(email);
 
     //비밀번호가 일치하지 않는 경우,409 에러 메시지 응답
     if(find_user.length === 0) return res.status(status_code.not_found_user).send("Not found user");
@@ -179,7 +176,7 @@ const delete_account = async (req, res, next) => {
     const { user_id } = req.params;
     const { pwd } = req.body;
     //회원 탈퇴를 위해 유저가 입력한 비밀번호와 유저의 식별자 id 값을 통해 확인한 비밀번호가 일치하는 지 확인
-    const find_user = await User.find_by_id(user_id);
+    const find_user = await Models.User.find_by_id(user_id);
     const compare_pwd = await bcrypt.compare(pwd, find_user[0].pwd);
 
     //회원 탈퇴한 유저의 경우 식별자 id 값을 제외하고 email, pwd, nickname은 null 처리, 탈퇴일자 업데이트 (탈퇴 일자가 필요한 정보일지? -> 나중에 유저가 재가입 시 해당 정보가 필요한지?)
@@ -189,9 +186,9 @@ const delete_account = async (req, res, next) => {
     const signout_at = new Date().toISOString().slice(0, 10).replace("T", " ");
 
     //비밀번호가 틀릴 경우, 401 에러 메시지 응답
-    if(!compare_pwd) return res.status(status_code.unauthorized).send("Invalid password");
+    if(!compare_pwd) return res.status(status_code.unauthenticated).send("Invalid password");
 
-    await User.delete(null_email, null_pwd, null_nickname, signout_at, user_id);
+    await Models.User.delete(null_email, null_pwd, null_nickname, signout_at, user_id);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
     return res.status(status_code.update_success).end();
   } catch(err) {
@@ -207,14 +204,14 @@ const edit_pwd = async (req, res, next) => {
     const { user_id } = req.params;
     const { new_pwd } = req.body;
     //비밀번호 변경을 위해 유저가 입력한 비밀번호와 db에 저장된 비밀번호와 일치하는 정보가 있는지 확인
-    const find_user = await User.find_by_id(user_id);
+    const find_user = await Models.User.find_by_id(user_id);
     //비밀번호가 틀릴 경우, 401 에러 메시지 응답
-    if(find_user.length === 0) return res.status(status_code.unauthorized).send("not found user");
+    if(find_user.length === 0) return res.status(status_code.unauthenticated).send("not found user");
 
     //일치하는 비밀번호가 있다면, 업데이트 할 예정인 비밀번호를 암호화
     const hash_pwd = await bcrypt.hash(new_pwd, 10);
     //암호화한 새 비밀번호로 db 업데이트
-    await User.update_pwd(hash_pwd, user_id);
+    await Models.User.update_pwd(hash_pwd, user_id);
     //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204 반환
     return res.status(status_code.update_success).end();
   } catch(err) {
