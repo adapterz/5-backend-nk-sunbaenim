@@ -46,6 +46,7 @@ router.post("/logout", (req, res, next) => {
   req.session.destroy((err) => {
     next(err);
   });
+  console.log("Log out")
   res.send("Completed Log out");
 });
 
