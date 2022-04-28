@@ -28,10 +28,7 @@ router.delete("/:comment_id", if_not_logged_in, ctrl.delete_comment);
 //게시글 댓글 목록 조회
 router.get("/:article_id", ctrl.get_comments);
 
-//댓글 좋아요 생성
-router.post("/:comment_id", if_not_logged_in, ctrl.create_comment_like);
-
-//댓글 좋아요 삭제
-router.post("/:comment_id", if_not_logged_in, ctrl.delete_comment_like);
+//댓글 좋아요 생성 및 취소
+router.post("/:comment_id/likes", if_not_logged_in, ctrl.create_comment_like);
 
 module.exports = router;
