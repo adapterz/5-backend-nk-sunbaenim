@@ -3,6 +3,7 @@ const Models = require("../models/models");
 const bcrypt = require("bcryptjs");
 const status = require("../middlewares/error.handling/http.status.codes");
 const logger = require("../config/winston");
+const mail = require("../middlewares/mail.js");
 
 // http post "users/signup" 요청 시 응답 (회원가입)
 const create_account = async (req, res, next) => {
@@ -172,6 +173,14 @@ const find_pwd = async (req, res, next) => {
         .status(status.UNAUTHORIZED)
         .send({ message: "Not found user" });
     }
+
+    const emailParams = {
+      email: email,
+      subject: "SUNBAENIM 비밀번호 변경",
+      test: "비밀번호 변경을 요청하셨습니다."
+    }
+    mail.send_gmail(emailParams);
+
   } catch (error) {
     logger.error(`file: users.ctrl.js, location: find_pwd(), error: ${error}`);
     next(error);
