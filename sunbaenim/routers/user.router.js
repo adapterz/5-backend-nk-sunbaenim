@@ -43,7 +43,7 @@ router.post("/logout", (req, res, next) => {
 });
 
 //비밀번호 찾기
-router.delete("/pwd_search", ctrl.find_pwd);
+router.patch("/pwd_search", ctrl.find_pwd);
 
 //내 비밀번호 변경
 router.patch("/pwd", pwd_validation, ctrl.edit_pwd);
