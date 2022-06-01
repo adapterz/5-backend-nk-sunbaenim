@@ -174,10 +174,11 @@ const find_pwd = async (req, res, next) => {
         .send({ message: "Not found user" });
     }
 
+    const randomPwd = Math.random().toString(36).slice(2);
     const emailParams = {
       email: email,
       subject: "SUNBAENIM 비밀번호 변경",
-      test: "비밀번호 변경을 요청하셨습니다."
+      text: `임시 비밀 번호는 ${randomPwd} 입니다. 접속 후 비밀번호를 변경하세요`
     }
     mail.send_gmail(emailParams);
 
