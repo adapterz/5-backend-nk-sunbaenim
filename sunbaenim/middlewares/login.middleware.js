@@ -1,10 +1,6 @@
 const { body, validationResult } = require("express-validator");
-
-//에러코드 상수화
-const status_code = {
-  //클라이언트에서 요청을 잘못된 형식으로 입력 했을 때
-  invalid_input: 400,
-}
+const logger = require("../config/winston");
+const status = require("../middlewares/error.handling/http.status.codes");
 
 module.exports = [
   body("email")
@@ -29,13 +25,18 @@ module.exports = [
   (req, res, next) => {
     const errors = validationResult(req);
     //모든 유효성 검사 통과 시 next() 실행
-    if(errors.isEmpty()) return next();
+    if(errors.isEmpty()) {
+      logger.info(`file: login.middleware.js, location: errors.isEmpty(), msg: Login validation success`);
+      return next();
+    }
 
     if(!errors.isEmpty() && errors.errors[0].param === 'email') {
-      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg});
+      logger.error(`file: login.middleware.js, location: body(email), error: ${errors.array()[0].msg}`);
+      return res.status(status.BAD_REQUEST).send({message: errors.array()[0].msg});
     }
     if(!errors.isEmpty() && errors.errors[0].param === 'pwd'){
-      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg});
+      logger.error(`file: login.middleware.js, location: body(pwd), error: ${errors.array()[0].msg}`);
+      return res.status(status.BAD_REQUEST).send({message: errors.array()[0].msg});
     }
   }
 ];

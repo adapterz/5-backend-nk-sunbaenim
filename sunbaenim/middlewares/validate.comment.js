@@ -1,10 +1,6 @@
 const { body, validationResult } = require("express-validator");
-
-//에러코드 상수화
-const status_code = {
-  //클라이언트에서 요청을 잘못된 형식으로 입력 했을 때
-  invalid_input: 400,
-}
+const logger = require("../config/winston");
+const status = require("../middlewares/error.handling/http.status.codes");
 
 module.exports = [
   //댓글 본문의 유효성 검사
@@ -16,10 +12,14 @@ module.exports = [
   (req, res, next) => {
     const errors = validationResult(req);
     //모든 유효성 검사 통과 시 next() 실행
-    if(errors.isEmpty()) return next();
+    if(errors.isEmpty()) {
+      logger.info(`file: validate.comment.js, location: errors.isEmpty(), msg: Comment validation success`);
+      return next();
+    }
 
     if(!errors.isEmpty() && errors.errors[0].param === 'content'){
-      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg})
+      logger.error(`file: validate.comment.js, location: body(content), error: ${errors.array()[0].msg}`);
+      return res.status(status.BAD_REQUEST).json({message: errors.array()[0].msg})
     }
   }
 ];
