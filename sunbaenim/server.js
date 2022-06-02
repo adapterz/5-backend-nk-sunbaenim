@@ -1,3 +1,5 @@
+const http = require("http");
+const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 require("dotenv").config();
@@ -14,7 +16,7 @@ const format = morgan_json(
 );
 const cors = require("cors");
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: ["http://sunbaenim.site", "http://www.sunbaenim.site"],
   //다른 도메인 간 쿠키 주고받을 수 있게 서버에서 설정
   credentials: true,
   methods: ["GET", "PATCH", "POST", "DELETE"],
@@ -22,7 +24,6 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 const app = express();
-const PORT = 8080;
 
 //Routers
 const users = require("./routers/user.router");
@@ -41,9 +42,11 @@ app.use(
     secret: process.env.secret,
     //false로 보통 많이 해둔다. 매번 변경사항이 없는 세션을 다시 저장해야하는 것에 대한 부담을 줄이고, 동시에 두 가지 일을 처리할 때 세션끼리 충돌하는 것을 방지하기 위함이다.
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     //쿠키에 들어가는 세션 ID 값의 옵션
     cookie: {
+      httpOnly: true,
+      secure: false,
       maxAge: 60 * 1000,
     },
   })
@@ -75,8 +78,8 @@ app.use("/comments", comments);
 app.use("/notifications", notifications);
 app.use("/files", files);
 
-app.listen(PORT, function () {
-  console.log("server start 8080");
-});
+app.set("port", process.env.PORT || 3000)
 
-module.exports = app;
+app.listen(app.get("port"), () => {
+  console.log(`Express server listening on port ${app.get('port')}`);
+})
