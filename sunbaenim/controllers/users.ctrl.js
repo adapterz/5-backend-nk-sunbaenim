@@ -8,8 +8,9 @@ const mail = require("../middlewares/mail.js");
 // http post "users/signup" 요청 시 응답 (회원가입)
 const create_account = async (req, res, next) => {
   try {
-    const { email, pwd } = req.body;
+    const { email, pwd, nickname } = req.body;
     const existed_email = await Models.User.find_by_email(email);
+    const existed_nickname = await Models.User.find_by_nickname(nickname);
 
     //이미 존재하는 유저일 경우 굳이 패스워드를 해시하는 코드가 동작 안한다!
     if (existed_email.length !== 0) {
@@ -22,17 +23,31 @@ const create_account = async (req, res, next) => {
       });
     }
 
+    if (existed_nickname.length > 0) {
+      //이미 존재하는 유저가 있으므로 상태코드 409 반환
+      logger.info(
+        `file: users.ctrl.js, location: Models.User.find_by_nickname(${nickname}), msg: Nickname existed`
+      );
+      return res.status(status.CONFLICT).send({
+        message: "The nickname already in use!",
+      });
+    }
+
     //비밀번호 암호화, 암호화에 사용할 salt는 기본으로 권장되는 10번으로 설정
     //TODO: bycrpt에 salt가 필요할까? 필요하지 않다면 왜 필요하지 않는지 명확한 이유 찾기
     const hash_pwd = await bcrypt.hash(pwd, 10);
 
     //Save account in the database
-    const result = await Models.User.create(email, hash_pwd, hash_pwd);
+    const result = await Models.User.create(email, hash_pwd, nickname);
     logger.info(
       `file: users.ctrl.js, location: Models.User.create(), msg: User account created`
     );
-    //요청은 성공적으로 반영되었으나, 응답으로 반환해줄 콘텐츠는 없는 경우 상태코드 204
-    return res.status(status.OK).send({ result });
+
+    //요청은 성공적으로 반영되었고, 새로운 데이터가 생성되었으므로 201 상태코드
+    req.session.destroy();
+    return res.status(status.CREATED).send({
+      result
+    });
   } catch (error) {
     logger.error(
       `file: users.ctrl.js, location: create_account(), error: ${error}`
@@ -44,7 +59,7 @@ const create_account = async (req, res, next) => {
 // http POST "users/:user_id/nickname" 요청 시 응답 (닉네임 등록)
 const create_nickname = async (req, res, next) => {
   try {
-    const { user_id } = req.params;
+    const { user_id } = req.session;
     const { nickname } = req.body;
     const existed_nickname = await Models.User.find_by_nickname(nickname);
 
@@ -201,6 +216,10 @@ const delete_account = async (req, res, next) => {
 
     //회원 탈퇴를 위해 유저가 입력한 비밀번호와 유저의 식별자 id 값을 통해 확인한 비밀번호가 일치하는 지 확인
     const find_user = await Models.User.find_by_id(user_id);
+    console.log(user_id);
+    console.log(find_user);
+    console.log(find_user[0].pwd);
+    console.log(pwd);
     const compare_pwd = await bcrypt.compare(pwd, find_user[0].pwd);
 
     //비밀번호가 틀릴 경우, 401 에러 메시지 응답
