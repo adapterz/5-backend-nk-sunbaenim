@@ -10,10 +10,7 @@ const Article = {
       const views = 0;
       const total_likes = 0;
       const total_comments = 0;
-      //게시글 생성 날짜
-      // const edit_at = null;
-      // const delete_at = null;
-      sql.execute(
+      await sql.execute(
         "INSERT INTO articles (user_id, title, content, views, total_likes, category, is_published, total_comments, create_at, edit_at, delete_at) VALUES (?,?,?,?,?,?,?,?,NOW(),null,null)",
         [
           user_id,
@@ -37,7 +34,7 @@ const Article = {
   edit: async function (article_id, title, content, category_id) {
     try {
       sql.execute(
-        "UPDATE articles SET title = ?, content = ?, category = ?, create_at = NOW(), edit_at = NOW() WHERE id = ?",
+        "UPDATE articles SET title = ?, content = ?, category = ?, edit_at = NOW() WHERE id = ?",
         [title, content, category_id, article_id]
       );
     } catch (error) {
@@ -71,6 +68,21 @@ const Article = {
     } catch (error) {
       logger.error(
         `file: article.model.js, location: SELECT * FROM articles WHERE id = ${article_id}, error: ${error}`
+      );
+    }
+  },
+
+  //게시글 제목으로 게시글 id 조회
+  find_by_title: async function (title) {
+    try{
+      const [row] = await sql.execute(
+        "SELECT id FROM articles WHERE title = ?",
+        [title]
+      );
+      return row;
+    } catch(error) {
+      logger.error(
+        `file: article.model.js, location: SELECT article_id FROM articles WHERE title = ${title}, error: ${error}`
       );
     }
   },
