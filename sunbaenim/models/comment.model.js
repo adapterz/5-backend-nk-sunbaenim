@@ -35,6 +35,11 @@ const Comment = {
         ]
       );
 
+      //게시판의 total comments 개수에 1 추가
+      await sql.execute("UPDATE articles SET total_comments = total_comments + 1 WHERE id = ?", [
+        article_id,
+      ]);
+
       //아래 코드는 댓글 혹은 대댓글이 생성되었을 시, 적용된 게시물 또는 부모 댓글 작성자에게 알림을 주기 위함
       //댓글, 대댓글 상관 없이 게시물 작성자에겐 알람이 가야함.
       //creator === 게시물 작성자의 식별 id
@@ -103,16 +108,27 @@ const Comment = {
   },
 
   //댓글 삭제
-  delete: async function (comment_id) {
+  delete: async function (user_id, comment_id) {
     try {
       //게시글 삭제 시, 작성한 유저와 콘텐츠 정보는 그대로 두되 생성일자 null, 삭제일자 생성
-      sql.execute(
-        "UPDATE comments SET create_at = null, delete_at = NOW() WHERE id = ?",
+      await sql.execute(
+        "UPDATE comments SET delete_at = NOW() WHERE id = ?",
         [comment_id]
       );
+
+      const [article_id] = await sql.execute(
+        "SELECT article_id FROM comments WHERE id = ? AND user_id = ?",
+        [comment_id, user_id]
+      );
+      console.log(article_id[0].article_id);
+      //게시판의 total comments 개수에 1 추가
+      await sql.execute("UPDATE articles SET total_comments = total_comments - 1 WHERE id = ?", [
+        article_id[0].article_id,
+      ]);
+      
     } catch (error) {
       logger.error(
-        `file: comment.model.js, location: UPDATE comments SET create_at = null, delete_at = NOW() WHERE id = ${comment_id}, error: ${error}`
+        `file: comment.model.js, location: UPDATE comments SET delete_at = NOW() WHERE id = ${comment_id}, error: ${error}`
       );
     }
   },
@@ -165,7 +181,7 @@ const Comment = {
   get_comments_init: async function (article_id, limit) {
     try{
       const [row] = await sql.query(
-        "SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ? ORDER BY id desc LIMIT ?",
+        "SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ? AND delete_at IS NULL ORDER BY id desc LIMIT ?",
         [article_id, limit]
       );
       return row;
@@ -180,13 +196,13 @@ const Comment = {
   get_comments: async function (article_id, cursor, limit) {
     try{
       const [row] = await sql.query(
-        "SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ? and id < ? ORDER BY id desc LIMIT ?",
+        "SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ? and id < ? AND delete_at IS NULL ORDER BY id desc LIMIT ?",
         [article_id, cursor, limit]
       );
       return row;
     } catch(error){
       logger.error(
-        `file: comment.model.js, location: SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ${article_id} and id < ${cursor} ORDER BY id desc LIMIT ${limit}, error: ${error}`
+        `file: comment.model.js, location: SELECT id, user_id, content, create_at, class, orders, group_id, total_likes, total_replies FROM comments WHERE article_id = ${article_id} and id < ${cursor} AND delete_at IS NULL ORDER BY id desc LIMIT ${limit}, error: ${error}`
       );
     }
   },
