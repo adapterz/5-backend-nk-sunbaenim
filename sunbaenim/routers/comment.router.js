@@ -24,6 +24,9 @@ router.delete("/:comment_id", login_check.if_not_logged_in, ctrl.delete_comment)
 // URL : /comments?article_id&limit&cursor
 router.get("/", ctrl.get_comments);
 
+//댓글 조회
+router.get("/:comment_id", ctrl.get_comment);
+
 //댓글 좋아요 생성 및 취소
 router.post("/likes", login_check.if_not_logged_in, ctrl.create_comment_like);
 

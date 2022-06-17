@@ -1,6 +1,9 @@
 const http = require("http");
+const https = require("https");
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const app = express();
 const bodyParser = require("body-parser");
 require("dotenv").config();
 const session = require("express-session");
@@ -16,14 +19,12 @@ const format = morgan_json(
 );
 const cors = require("cors");
 const corsOptions = {
-  origin: ["http://sunbaenim.site", "http://www.sunbaenim.site"],
+  origin: ["http://localhost:3000"],
   //다른 도메인 간 쿠키 주고받을 수 있게 서버에서 설정
   credentials: true,
-  methods: ["GET", "PATCH", "POST", "DELETE"],
-  preflightContinue: true,
-  optionsSuccessStatus: 200,
 };
-const app = express();
+app.use(cors(corsOptions));
+
 
 //Routers
 const users = require("./routers/user.router");
@@ -42,18 +43,15 @@ app.use(
     secret: process.env.secret,
     //false로 보통 많이 해둔다. 매번 변경사항이 없는 세션을 다시 저장해야하는 것에 대한 부담을 줄이고, 동시에 두 가지 일을 처리할 때 세션끼리 충돌하는 것을 방지하기 위함이다.
     resave: false,
-    saveUninitialized: false,
-    //쿠키에 들어가는 세션 ID 값의 옵션
+    saveUninitialized: true,
     cookie: {
+      maxAge: 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: false,
-      maxAge: 60 * 1000,
-    },
+    }
   })
 );
 
 app.use(morgan(format, { stream: logger.stream }));
-app.use(cors(corsOptions));
 app.use(helmet());
 //Content Security Policy middleware
 app.use(
@@ -78,8 +76,28 @@ app.use("/comments", comments);
 app.use("/notifications", notifications);
 app.use("/files", files);
 
-app.set("port", process.env.PORT || 3000)
-
-app.listen(app.get("port"), () => {
+//app.set("port", process.env.PORT || 8080)
+/*app.listen(app.get("port"), () => {
   console.log(`Express server listening on port ${app.get('port')}`);
-})
+})*/
+
+//Production mode와 development mode를 구별하여 서버 생성
+if(process.env.NODE_ENV === "production") {
+  const KEY_URL = process.env.KEY_URL;
+  const options = {
+    key: fs.readFileSync(`${KEY_URL}/privkey.pem`),
+    cert: fs.readFileSync(`${KEY_URL}/cert.pem`),
+    ca: fs.readFileSync(`${KEY_URL}/chain.pem`),
+  };
+    https.createServer(options, app).listen(443, () => {
+    console.log(`Listening at port 443`);
+    });
+  } else {
+    http.createServer(app).listen(8080, () => {
+    /*let reqOrigin = req.headers.origin;
+    if(whitelist.indexOf(reqOrigin) > -1) {
+        headers['access-control-allow-origin'] = reqOrigin;
+    }*/
+    console.log(`Listening at port 8080`);
+  });
+}
