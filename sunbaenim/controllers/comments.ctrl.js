@@ -117,7 +117,7 @@ const delete_comment = async (req, res, next) => {
       return res.status(status.UNAUTHORIZED).send("Not allowed user");
     }
 
-    await Models.Comment.delete(comment_id);
+    await Models.Comment.delete(user_id, comment_id);
     logger.info(
       `file: comments.ctrl.js, location: Models.Comment.delete(${comment_id}), msg: Comment deleted`
     );
@@ -183,8 +183,39 @@ const get_comments = async (req, res, next) => {
   }
 };
 
+//댓글 조회
+//GET /:comment_id
+const get_comment = async (req, res, next) => {
+  try{
+    const { comment_id } = req.params;
+
+    const result = await Models.Comment.find_by_id(comment_id);
+    if(!result){
+      logger.info(
+        `file: comments.ctrl.js, location: Models.Comment.find_by_id(${comment_id}), msg: Comment is not existed`
+      );
+      return res.status(status.NOT_FOUND).send({
+        message: "Comment is not existed"
+      })
+    }
+    //댓글 작성자의 닉네임 찾기
+    const userInfo = await Models.User.find_by_id(result[0].user_id);
+    const nickname = userInfo[0].nickname;
+
+    return res.status(status.OK).send({
+      result,
+      writer: nickname
+    })
+  } catch(error) {
+    logger.error(
+      `file: comments.ctrl.js, location: get_comment(), error: ${error}`
+    );
+    next(error);
+  }
+}
+
 //댓글 좋아요 생성
-//POST /:comment_id/likes
+//POST /likes
 const create_comment_like = async (req, res, next) => {
   try {
     //로그인한 유저 정보 가져오기
@@ -250,5 +281,6 @@ module.exports = {
   edit_comment,
   delete_comment,
   get_comments,
+  get_comment,
   create_comment_like,
 };
