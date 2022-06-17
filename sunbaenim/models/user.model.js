@@ -4,17 +4,11 @@ const logger = require("../config/winston");
 
 const User = {
   //DB에 새로운 유저의 계정 정보 저장
-  create: async function (email, pwd) {
+  create: async function (email, pwd, nickname) {
     try {
-      //nickname은 회원가입 페이지 바로 다음 페이지에서 업데이트 예정
-      const nickname = " ";
-      //회원 탈퇴한 날짜
-      const signout_at = null;
-      //field_id(유저 관심 카테고리) : 회원가입 시 디폴트 값으로 등록, 다음 가입 페이지에서 업데이트 될 예정
-      const field_id = 0;
       await sql.execute(
-        "INSERT INTO users (email, pwd, pwd_check, nickname, signup, signout, field_id) VALUES (?,?,?,?,NOW(),?,?)",
-        [email, pwd, pwd, nickname, signout_at, field_id]
+        "INSERT INTO users (email, pwd, pwd_check, nickname, signup, signout, field_id) VALUES (?,?,?,?,NOW(),null,0)",
+        [email, pwd, pwd, nickname]
       );
       //생성된 유저 계정의 인덱스 값을 리턴
       const [row] = await sql.execute("SELECT id FROM users WHERE email = ?", [
@@ -23,7 +17,7 @@ const User = {
       return row;
     } catch (error) {
       logger.error(
-        `file: users.model.js, location: INSERT INTO users (email, pwd, pwd, nickname, signup, signout, field_id) VALUES (${email}, ${pwd}, ${pwd}, ${nickname},NOW(), ${signout},${field_id}), error: ${error}`
+        `file: users.model.js, location: INSERT INTO users (email, pwd, pwd, nickname, signup, signout, field_id) VALUES (${email}, ${pwd}, ${pwd}, ${nickname}, NOW(), null, 0), error: ${error}`
       );
       logger.error(
         `file: users.model.js, location: SELECT id FROM users WHERE email = ${email}, error: ${error}`
@@ -122,7 +116,7 @@ const User = {
   delete: async function (email, pwd, nickname, user_id) {
     try{
       sql.execute(
-        "UPDATE users SET email = ?, pwd = ?, nickname = ?, signout_at = NOW() WHERE id = ?",
+        "UPDATE users SET email = ?, pwd = ?, nickname = ?, signout = NOW() WHERE id = ?",
         [email, pwd, nickname, user_id]
       );
     } catch(error){
