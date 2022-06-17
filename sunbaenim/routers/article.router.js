@@ -30,5 +30,7 @@ router.get("/", ctrl.get_articles);
 
 //게시글 좋아요 생성 및 삭제
 router.post("/likes", login_check.if_not_logged_in, ctrl.like_on_off);
+//게시글 좋아요 여부 확인
+router.get("/likes/:article_id", login_check.if_not_logged_in, ctrl.like_check);
 
 module.exports = router;
