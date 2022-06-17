@@ -25,6 +25,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+
 //Routers
 const users = require("./routers/user.router");
 const articles = require("./routers/article.router");
