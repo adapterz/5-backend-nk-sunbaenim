@@ -11,11 +11,13 @@ const create_article = async (req, res, next) => {
     const { title, content, category_id, is_published } = req.body;
 
     //  유효성 검사가 안되는 데이터들에 대한 유효성 체크
-    if(!category_id || !is_published) {
-      logger.error(`file: articles.ctrl.js, location: create_article(), msg: Invalid data.`);
+    if (!category_id || !is_published) {
+      logger.error(
+        `file: articles.ctrl.js, location: create_article(), msg: Invalid data.`
+      );
       return res.send({
-        message: "Invalid data."
-      })
+        message: "Invalid data.",
+      });
     }
     //Save article in the database
     await Models.Article.create(
@@ -23,14 +25,14 @@ const create_article = async (req, res, next) => {
       title,
       content,
       category_id,
-      is_published,
+      is_published
     );
     logger.info(
       `file: articles.ctrl.js, location: Models.Article.create(), msg: Article Created`
     );
-    return res
-      .status(status.CREATED)
-      .send({ message: "Article Created" });
+
+    const article_id = await Models.Article.find_by_title(title);
+    return res.status(status.CREATED).send({ article_id: article_id });
   } catch (error) {
     logger.error(
       `file: articles.ctrl.js, location: create_article(), error: ${error}`
@@ -38,7 +40,6 @@ const create_article = async (req, res, next) => {
     next(error);
   }
 };
-
 
 //게시글 수정
 //PATCH /
@@ -53,19 +54,23 @@ const edit_article = async (req, res, next) => {
       logger.info(
         `file: articles.ctrl.js, location: Models.Article.find_by_id(${article_id}), msg: Not found article`
       );
-      return res
-        .status(status.NOT_FOUND)
-        .send("Not found article");
+      return res.status(status.NOT_FOUND).send("Not found article");
     }
     //수정하고자 하는 게시물의 작성자가 맞는지 권한 확인
     if (find_article[0].user_id !== user_id) {
-      logger.info(`file: articles.ctrl.js, location: Models.Article.find_by_id(${article_id}), msg: Unauthorized data.`);
-      return res.status(status.UNAUTHORIZED).send({ message: "Unauthorized user"});
+      logger.info(
+        `file: articles.ctrl.js, location: Models.Article.find_by_id(${article_id}), msg: Unauthorized data.`
+      );
+      return res
+        .status(status.UNAUTHORIZED)
+        .send({ message: "Unauthorized user" });
     }
 
     //Edit article in the database
     await Models.Article.edit(article_id, title, content, category_id);
-    logger.info(`file: articles.ctrl.js, location: Models.Article.edit(${article_id}, ${title}, ${content}, ${category_id}), msg: Article edited`);
+    logger.info(
+      `file: articles.ctrl.js, location: Models.Article.edit(${article_id}, ${title}, ${content}, ${category_id}), msg: Article edited`
+    );
     //요청(게시물 수정)은 성공하였으나 반환해야 할 값이 없으므로 204 리턴
     return res.status(status.NO_CONTENT).end();
   } catch (error) {
@@ -112,23 +117,23 @@ const get_article = async (req, res, next) => {
     const find_article = await Models.Article.find_by_id(article_id);
 
     //수정하고자 하는 게시물이 db 상에 존재하는지 확인
-    if (find_article.length === 0){
+    if (find_article.length === 0) {
       logger.info(
         `file: articles.ctrl.js, location: Models.Article.find_by_id(${article_id}), msg: Not found article(아예 DB상에 존재하지 않음)`
       );
       return res
-      .status(status.NOT_FOUND)
-      .send({ message: "Not found article"});
+        .status(status.NOT_FOUND)
+        .send({ message: "Not found article" });
     }
 
     //만약 조회하고자 하는 게시물이 이미 삭제된 게시물이라 존재하지 않는 경우 404 리턴
-    if (find_article[0].delete_at !== null){
+    if (find_article[0].delete_at !== null) {
       logger.info(
         `file: articles.ctrl.js, location: Models.Article.find_by_id(${article_id}), msg: Not found article(삭제 처리된 데이터)`
       );
       return res
         .status(status.NOT_FOUND)
-        .send({ message: "Not found article"});
+        .send({ message: "Not found article" });
     }
 
     //상세 조회 시 게시물 조회수 +1 증가
@@ -154,7 +159,7 @@ const get_article = async (req, res, next) => {
     );
     return res.status(status.OK).send({
       writer: writer[0].nickname,
-      article: find_article[0]
+      article: find_article[0],
     });
   } catch (error) {
     logger.error(
@@ -267,7 +272,6 @@ const get_articles = async (req, res, next) => {
   }
 };
 
-
 //게시글 좋아요 생성 또는 좋아요 취소
 //POST /likes
 const like_on_off = async (req, res, next) => {
@@ -329,6 +333,34 @@ const like_on_off = async (req, res, next) => {
   }
 };
 
+const like_check = async (req, res, next) => {
+  try {
+    //로그인한 유저 정보 가져오기
+    const { user_id } = req.session;
+    //좋아요를 반영할 게시물의 식별 id 가져오기
+    const { article_id } = req.params;
+    const result = await Models.Article.find_like_by_id(article_id, user_id);
+
+    if(!result.length){
+      logger.info(
+        `file: articles.ctrl.js, location: Models.Article.find_like_by_id(${article_id}, ${user_id}), msg: No Like history`
+      );
+      return res.status(status.NOT_FOUND).send({
+        data : false
+      })
+    }
+
+    logger.info(
+      `file: articles.ctrl.js, location: Models.Article.find_like_by_id(${article_id}, ${user_id}), msg: Like history is found`
+    );
+    return res.status(status.OK).send({
+      data: result
+    })
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   create_article,
   edit_article,
@@ -338,4 +370,5 @@ module.exports = {
   get_articles,
   // query_articles,
   like_on_off,
+  like_check,
 };
