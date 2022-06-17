@@ -36,6 +36,12 @@ module.exports = [
     return true;
   }),
 
+  body("nickname")
+    .notEmpty()
+    .withMessage("Please fill out pwd")
+    .trim()
+    .escape(),
+
 
   (req, res, next) => {
     const errors = validationResult(req);
@@ -49,6 +55,9 @@ module.exports = [
       return res.status(status_code.invalid_input).json({message: errors.array()[0].msg})
     }
     if(errors.errors[0].param === 'pwd_check'){
+      return res.status(status_code.invalid_input).json({message: errors.array()[0].msg})
+    }
+    if(!errors.isEmpty() && errors.errors[0].param === 'nickname'){
       return res.status(status_code.invalid_input).json({message: errors.array()[0].msg})
     }
   }
