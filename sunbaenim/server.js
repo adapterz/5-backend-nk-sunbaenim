@@ -18,15 +18,7 @@ const format = morgan_json(
   ":method :url :status :res[content-length] :response-time"
 );
 const cors = require("cors");
-//const whitelist = ["http://localhost:3000"];
 const corsOptions = {
-  /* origin: (origin, callback) => {
-    if(whitelist.indexOf(origin) !== -1) {
-      callback(null, true)
-    } else {
-      callback(new Error("not allowed"))
-    }
-  },*/
   origin: ["http://localhost:3000"],
   //다른 도메인 간 쿠키 주고받을 수 있게 서버에서 설정
   credentials: true,
