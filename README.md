@@ -53,7 +53,7 @@ Node.js, MySQL
 ```
 
 ## 📌 프로젝트 설계도 (DB)
-<img src="/readme.src/sunbaenim_db.png" width=800>
+<img src="sunbaenim/readme.src/sunbaenim_db.png" width=800>
 
 ## 📌 API 구조
 
